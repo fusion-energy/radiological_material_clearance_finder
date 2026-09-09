@@ -39,7 +39,8 @@ What differs between regulations, and what the result therefore records, is
 everything that is not a plain lookup:
 
 ```python
-result.excluded    # daughters a parent's limit already accounts for
+result.excluded    # daughters a parent's limit already accounts for in full
+result.credited    # activity a parent could only partly account for
 result.defaulted   # nuclides that took a catch-all limit
 result.uncovered   # activity with no limit at all, absent from the index
 result.uncovered_fraction   # how much of the inventory that is
@@ -152,6 +153,15 @@ A daughter is only excluded when its parent is actually present, and where a
 source lists a parent twice, plain and marked, the marked value applies only
 when the daughters are really there. StrlSchV gives Th-232 as 10 Bq/g plain and
 0.01 Bq/g marked, and which applies depends on the material.
+
+Two further conditions have to hold before a parent can account for anything.
+The parent must have a limit in that set: nine of the shipped sets contain a
+parent with no row of its own whose daughter does have one, StrlSchV_soil with
+Np-237 and Pa-233 among them, and crediting against a limit that does not exist
+would drop the daughter from the sum for nothing. And the credit is capped at
+the parent's own activity, because secular equilibrium means equal activities,
+so a daughter present far in excess of its parent keeps the excess in the sum
+and it appears in `credited`.
 
 ## Regenerating the tables
 

@@ -39,7 +39,10 @@ class ClearanceResult:
         defaulted: Nuclides that took the set's catch-all limit because the
             table does not list them.
         excluded: Nuclide to the reason its activity was left out, which is
-            always that a parent's limit already accounts for it.
+            always that a parent's limit already accounts for it in full.
+        credited: Nuclide to the activity a parent accounted for, where the
+            parent could only support part of it. The remainder was assessed
+            against the nuclide's own limit in the usual way.
         uncovered: Activity present with no limit and no catch-all, so absent
             from the index entirely. The number to check before trusting a
             comfortable index.
@@ -59,6 +62,7 @@ class ClearanceResult:
     limits_used: dict[str, float] = field(default_factory=dict)
     defaulted: tuple[str, ...] = ()
     excluded: dict[str, str] = field(default_factory=dict)
+    credited: dict[str, float] = field(default_factory=dict)
     uncovered: dict[str, float] = field(default_factory=dict)
     unlimited: tuple[str, ...] = ()
     out_of_scope: bool = False
@@ -108,6 +112,7 @@ class ClearanceResult:
             "limits_used": dict(self.limits_used),
             "defaulted": list(self.defaulted),
             "excluded": dict(self.excluded),
+            "credited": dict(self.credited),
             "uncovered": dict(self.uncovered),
             "unlimited": list(self.unlimited),
             "uncovered_fraction": self.uncovered_fraction,
@@ -177,43 +182,87 @@ def _out_of_scope(material: Material, limit_set: LimitSet) -> bool:
         if material.decay_data.is_radioactive(name)
     ]
     if not half_lives:
-        return True
+        # The rule is about how long lived the radionuclides are. With none at
+        # all there is nothing for it to be true of, and returning True here
+        # would force clearable regardless of the index, which matters when
+        # activities were supplied directly for a nuclide the tables call stable.
+        return False
     return all(value <= limit_set.min_half_life_scope for value in half_lives)
 
 
-def _resolve_equilibrium(material: Material, limit_set: LimitSet) -> tuple[dict, dict]:
-    """Work out which daughters to exclude, and which parent limits that changes.
+def _resolve_equilibrium(
+    material: Material,
+    limit_set: LimitSet,
+    activities: dict,
+    limits: dict,
+    default_applies: bool,
+) -> tuple[dict, dict, dict]:
+    """Work out what a parent's limit already accounts for.
 
-    A daughter is only excluded when its parent is actually present. Excluding
-    it regardless would drop activity that arrived by some other route and is
-    not in equilibrium with anything.
+    The regulations mark a parent whose tabulated value "already takes into
+    account the daughter radionuclides present". That claim rests on two things
+    being true, and this checks both rather than assuming them.
 
-    Where the source lists a parent twice, plain and marked "+", the marked
-    value applies only when the daughters really are there. StrlSchV gives
-    Th-232 as 10 Bq/g plain and 0.01 Bq/g marked, so a thorium inventory with
-    its chain present is held to a limit a thousand times stricter than freshly
-    separated Th-232, which is what the regulation intends.
+    The parent must actually be limited by this set. A parent that has no row
+    here contributes nothing to the index, so crediting its daughters against it
+    would remove them from the sum on the strength of a limit that does not
+    exist, and the index would fall towards zero. Nine of the shipped sets
+    contain such a pair, StrlSchV_soil Np-237 and Pa-233 among them.
+
+    The credit is also bounded by how much daughter activity the parent can
+    actually support. Secular equilibrium means the daughter's activity equals
+    its parent's, so only that much is accounted for. A daughter present far in
+    excess of its parent got there by some other route, and the excess stays in
+    the sum. Without this a trace of Sr-90 would delete an arbitrarily large
+    Y-90 activity from the index.
+
+    Args:
+        material: The inventory being assessed.
+        limit_set: The set being assessed against.
+        activities: Activity per nuclide, in the set's units.
+        limits: The effective limits, after metal and dynamic adjustments.
+        default_applies: Whether the set's catch-all limit is in use, which is
+            what decides if an untabulated parent is nonetheless limited.
 
     Returns:
-        ``(limit_overrides, excluded)``.
+        ``(limit_overrides, excluded, credited)``. ``excluded`` holds daughters
+        fully accounted for by a parent, and ``credited`` holds the activity
+        subtracted from a daughter that is only partly accounted for.
     """
-    present = set(material.nuclides)
+    present = {name for name, value in activities.items() if value > 0.0}
     excluded: dict[str, str] = {}
+    credited: dict[str, float] = {}
     overrides: dict[str, float] = {}
+
     for parent, daughters in limit_set.secular_equilibrium.items():
         if parent not in present:
             continue
+        parent_limited = (
+            parent in limits
+            or parent in limit_set.unlimited
+            or parent in limit_set.limits_secular_equilibrium
+            or default_applies
+        )
+        if not parent_limited:
+            continue
+
         found = [d for d in daughters if d in present and d != parent]
         if not found:
             continue
         if parent in limit_set.limits_secular_equilibrium:
             overrides[parent] = limit_set.limits_secular_equilibrium[parent]
+
+        parent_activity = activities.get(parent, 0.0)
         for daughter in found:
-            excluded[daughter] = (
-                f"in secular equilibrium with {parent}, whose limit already "
-                f"accounts for it"
-            )
-    return overrides, excluded
+            supported = min(activities[daughter], parent_activity)
+            if supported >= activities[daughter]:
+                excluded[daughter] = (
+                    f"in secular equilibrium with {parent}, whose limit already "
+                    f"accounts for it"
+                )
+            elif supported > 0.0:
+                credited[daughter] = supported
+    return overrides, excluded, credited
 
 
 def clearance_index(
@@ -252,11 +301,14 @@ def clearance_index(
     limit_set = get_limit_set(limit_set)
     activities = material.activity(units=limit_set.units, by_nuclide=True)
     limits = _effective_limits(material, limit_set, metal)
+    default_applies = apply_default_limit and limit_set.default_limit is not None
     if exclude_daughters:
-        overrides, excluded = _resolve_equilibrium(material, limit_set)
+        overrides, excluded, credited = _resolve_equilibrium(
+            material, limit_set, activities, limits, default_applies
+        )
         limits.update(overrides)
     else:
-        excluded = {}
+        excluded, credited = {}, {}
     unlimited_names = set(limit_set.unlimited)
 
     ratios: dict[str, float] = {}
@@ -269,6 +321,11 @@ def clearance_index(
         if activity <= 0.0:
             continue
         if name in excluded:
+            continue
+        # Only the part of a daughter's activity its parent can support is
+        # accounted for by the parent's limit. The rest is assessed normally.
+        activity -= credited.get(name, 0.0)
+        if activity <= 0.0:
             continue
         if name in unlimited_names:
             unlimited_present.append(name)
@@ -298,6 +355,7 @@ def clearance_index(
         limits_used=used,
         defaulted=tuple(sorted(defaulted)),
         excluded=excluded,
+        credited=dict(sorted(credited.items(), key=lambda item: -item[1])),
         uncovered=dict(sorted(uncovered.items(), key=lambda item: -item[1])),
         unlimited=tuple(sorted(unlimited_present)),
         out_of_scope=_out_of_scope(material, limit_set),

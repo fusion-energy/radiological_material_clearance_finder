@@ -22,6 +22,25 @@ ACTIVITY_UNITS = ("Bq", "Bq/g", "Bq/kg", "Bq/cm3", "Bq/m3", "Ci", "Ci/m3")
 _ATOMS_PER_BARN_CM = 1e24
 
 
+def _positive(name: str, value):
+    """Validate an optional positive quantity.
+
+    A density of zero would make every volumetric activity zero, and so every
+    Ci/m3 index zero, which reports as clearable. That is the most dangerous
+    way for this to fail, so it is rejected at construction.
+    """
+    if value is None:
+        return None
+    value = float(value)
+    if not value > 0.0:
+        raise ValueError(
+            f"{name} must be greater than zero, got {value!r}. A non-positive "
+            f"{name} would make every volumetric activity zero and so report the "
+            f"material as clearable."
+        )
+    return value
+
+
 class InsufficientDataError(ValueError):
     """Raised when a quantity cannot be derived from what the material was given."""
 
@@ -69,8 +88,8 @@ class Material:
     ):
         self.decay_data = decay_data if decay_data is not None else default_decay_data()
         self.name = name
-        self.volume = float(volume) if volume is not None else None
-        self._density = float(density) if density is not None else None
+        self.volume = _positive("volume", volume)
+        self._density = _positive("density", density)
         self._atoms_absolute = _atoms_absolute
 
         if atoms is None and _specific_activities is None:
@@ -181,9 +200,14 @@ class Material:
         out: dict[str, float] = {}
         for raw_name, value in mapping.items():
             name = _nuclide.normalise(raw_name)
+            value = float(value)
+            # NaN fails every comparison, so it must be tested for directly or it
+            # propagates through the whole index and surfaces as a NaN verdict.
+            if value != value:
+                raise ValueError(f"amount for {name} is NaN")
             if value < 0.0:
                 raise ValueError(f"negative amount {value!r} for {name}")
-            out[name] = out.get(name, 0.0) + float(value)
+            out[name] = out.get(name, 0.0) + value
         return out
 
     def _warn_if_inventory_looks_truncated(self) -> None:

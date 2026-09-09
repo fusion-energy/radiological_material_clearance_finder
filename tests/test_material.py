@@ -98,3 +98,30 @@ def test_mass_fractions_and_masses_agree():
     by_mass = Material.from_masses({"Fe56": 980.0, "Co60": 20.0}).specific_activity()
     by_fraction = Material.from_mass_fractions({"Fe56": 0.98, "Co60": 0.02}).specific_activity()
     assert by_mass == pytest.approx(by_fraction, rel=1e-12)
+
+
+def test_non_positive_density_is_rejected():
+    """Zero density would zero every volumetric activity and report clearable."""
+    with pytest.raises(ValueError, match="density must be greater than zero"):
+        Material.from_specific_activities({"Cs137": 1e12}, density=0.0)
+    with pytest.raises(ValueError, match="density must be greater than zero"):
+        Material({"Co60": 1e12}, density=-1.0)
+
+
+def test_non_positive_volume_is_rejected():
+    with pytest.raises(ValueError, match="volume must be greater than zero"):
+        Material({"Co60": 1e12}, volume=0.0)
+
+
+def test_nan_amounts_are_rejected():
+    """NaN fails every comparison, so it would flow through to a NaN index."""
+    with pytest.raises(ValueError, match="NaN"):
+        Material({"Co60": float("nan")})
+
+
+def test_total_activity_in_curies():
+    material = Material.from_masses({"Co60": 1.0}, density=8.9)
+    assert material.activity("Ci") == pytest.approx(
+        material.activity("Bq") / decay.BECQUEREL_PER_CURIE
+    )
+    assert material.activity("Ci") == pytest.approx(1131, rel=1e-3)

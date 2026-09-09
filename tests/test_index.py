@@ -19,7 +19,9 @@ def toy_set():
         name="TOY",
         label="toy",
         units="Bq/g",
-        limits={"Co60": 1.0, "Cs137": 10.0},
+        # Sr90 needs a limit of its own: a parent with no limit cannot account
+        # for its daughters, which is a separate case tested below.
+        limits={"Co60": 1.0, "Cs137": 10.0, "Sr90": 1.0, "Y90": 1.0},
         secular_equilibrium={"Sr90": ("Y90",)},
     )
 
@@ -175,3 +177,68 @@ def test_register_limit_set_makes_it_available():
         LimitSet(name="SITE_SPECIFIC", label="site", units="Bq/g", limits={"Co60": 1.0})
     )
     assert get_limit_set("SITE_SPECIFIC").limits["Co60"] == 1.0
+
+
+def test_a_parent_with_no_limit_cannot_account_for_its_daughters():
+    """A parent that is not limited here contributes nothing, so it can credit nothing.
+
+    Crediting against a limit that does not exist removes the daughter from the
+    sum and drives the index towards zero, reporting clearable. StrlSchV_soil
+    lists Pa-233 but not its parent Np-237, so this is real shipped data.
+    """
+    material = Material.from_specific_activities({"Np237": 1e4, "Pa233": 1e4})
+    result = clearance_index(material, "StrlSchV_soil")
+    assert result.excluded == {}
+    assert result.index == pytest.approx(
+        clearance_index(material, "StrlSchV_soil", exclude_daughters=False).index
+    )
+    assert not result.clearable
+    assert "Np237" in result.uncovered
+
+
+def test_a_parent_only_accounts_for_the_daughter_activity_it_supports():
+    """Secular equilibrium means equal activities, so that is all a parent covers."""
+    limits = LimitSet(
+        name="TOY_CREDIT", label="toy", units="Bq/g",
+        limits={"Sr90": 1.0, "Y90": 1.0}, secular_equilibrium={"Sr90": ("Y90",)},
+    )
+    # In equilibrium the daughter is fully accounted for.
+    equilibrium = Material.from_specific_activities({"Sr90": 100.0, "Y90": 100.0})
+    result = clearance_index(equilibrium, limits)
+    assert result.excluded == {"Y90": result.excluded["Y90"]}
+    assert result.index == pytest.approx(100.0)
+
+    # A trace of parent cannot account for a large daughter.
+    lopsided = Material.from_specific_activities({"Sr90": 1.0, "Y90": 1000.0})
+    result = clearance_index(lopsided, limits)
+    assert result.excluded == {}
+    assert result.credited == {"Y90": pytest.approx(1.0)}
+    # 1.0 of Sr90, plus the 999.0 of Y90 its parent cannot support.
+    assert result.index == pytest.approx(1.0 + 999.0)
+
+
+def test_a_sec_only_limit_is_applied_rather_than_left_unreachable():
+    """UK_IRR17_natural publishes U-238 only as a whole-chain "sec" row."""
+    result = clearance_index(
+        Material.from_specific_activities({"U238": 1e6}), "UK_IRR17_natural"
+    )
+    assert result.limits_used["U238"] == 1.0
+    assert result.uncovered == {}
+    assert result.index == pytest.approx(1e6)
+
+
+def test_the_scope_rule_does_not_fire_when_there_are_no_radionuclides():
+    """It is a rule about half-lives, so with no radionuclides it cannot apply.
+
+    Returning out of scope here would force clearable regardless of the index,
+    which is reachable when activities are supplied directly for a nuclide the
+    decay tables call stable.
+    """
+    limits = LimitSet(
+        name="TOY_SCOPE2", label="toy", units="Bq/g",
+        limits={"Fe56": 1.0}, min_half_life_scope=100.0,
+    )
+    result = clearance_index(Material.from_specific_activities({"Fe56": 1e6}), limits)
+    assert not result.out_of_scope
+    assert not result.clearable
+    assert result.index == pytest.approx(1e6)

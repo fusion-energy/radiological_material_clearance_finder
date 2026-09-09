@@ -145,9 +145,31 @@ def _canonical_limits(raw: Mapping[str, float]) -> dict[str, float]:
     return out
 
 
+def _promote_sec_only_limits(limits: dict[str, float]) -> dict[str, float]:
+    """Make a whole-chain value reachable when it is the only one published.
+
+    A "sec" row is the value for a parent taken with its whole decay chain in
+    secular equilibrium. It is stored under a "_sec" key so it stays distinct
+    from a plain row, but that key can never match a nuclide in a material. For
+    a nuclide whose only row is the "sec" one, keeping it there means the set
+    applies no limit at all: UK_IRR17_natural would give unprocessed natural
+    uranium a limit of nothing rather than the published 1 Bq/g. Where a plain
+    row exists as well, it stays the limit and the "sec" value remains the
+    variant selected when the chain is actually present.
+    """
+    promoted = dict(limits)
+    for key, value in limits.items():
+        if not key.endswith("_sec"):
+            continue
+        nuclide_name = key[: -len("_sec")]
+        if nuclide_name not in promoted:
+            promoted[nuclide_name] = value
+    return promoted
+
+
 def _from_dict(payload: Mapping) -> LimitSet:
     data = dict(payload)
-    data["limits"] = _canonical_limits(data.get("limits", {}))
+    data["limits"] = _promote_sec_only_limits(_canonical_limits(data.get("limits", {})))
     data["metal_overrides"] = _canonical_limits(data.get("metal_overrides", {}))
     data["limits_per_gram"] = _canonical_limits(data.get("limits_per_gram", {}))
     data["limits_upper"] = _canonical_limits(data.get("limits_upper", {}))

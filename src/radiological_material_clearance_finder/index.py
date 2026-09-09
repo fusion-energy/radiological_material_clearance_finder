@@ -332,15 +332,12 @@ def clearance_index(
             continue
         limit = limits.get(name)
         if limit is None:
-            if apply_default_limit and limit_set.default_limit is not None:
+            if default_applies:
                 limit = limit_set.default_limit
                 defaulted.append(name)
             else:
                 uncovered[name] = activity
                 continue
-        if limit <= 0.0:
-            uncovered[name] = activity
-            continue
         ratios[name] = activity / limit
         used[name] = limit
 

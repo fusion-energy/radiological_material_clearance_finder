@@ -99,3 +99,38 @@ def test_the_category_explains_itself():
     assert result.category == "ILW"
     assert "alpha" in result.reason
     assert "4 GBq/te" in result.reason
+
+
+# The 61.55 combination rules, which decide the class when Table 1 and Table 2
+# nuclides are both present. C-14 is a Table 1 nuclide with an 8 Ci/m3 limit and
+# Cs-137 is a Table 2 one, so the two ratios can be aimed independently.
+def test_table1_only_uses_rule_a3():
+    """61.55(a)(3): Class A below 0.1, Class C below 1.0, GTCC at or above."""
+    assert nrc_waste_class(steel({"C14": bq_per_g(0.4)})) == "Class A"
+    assert nrc_waste_class(steel({"C14": bq_per_g(4.0)})) == "Class C"
+    assert nrc_waste_class(steel({"C14": bq_per_g(9.0)})) == "GTCC"
+
+
+def test_both_tables_use_rule_a5():
+    """61.55(a)(5): Table 1 below 0.1 defers to Table 2, otherwise it dominates."""
+    # Table 1 ratio 0.05, so the Table 2 column decides.
+    assert nrc_waste_class(
+        steel({"C14": bq_per_g(0.4), "Cs137": bq_per_g(10.0)})
+    ) == "Class B"
+    # Table 1 ratio 0.5, which caps the answer at Class C.
+    assert nrc_waste_class(
+        steel({"C14": bq_per_g(4.0), "Cs137": bq_per_g(10.0)})
+    ) == "Class C"
+    # Table 1 ratio 0.5 with Table 2 above its Class C column gives GTCC.
+    assert nrc_waste_class(
+        steel({"C14": bq_per_g(4.0), "Cs137": bq_per_g(1e5)})
+    ) == "GTCC"
+    # Table 1 at or above 1.0 is GTCC whatever Table 2 says.
+    assert nrc_waste_class(
+        steel({"C14": bq_per_g(9.0), "Cs137": bq_per_g(0.1)})
+    ) == "GTCC"
+
+
+def test_neither_table_uses_rule_a6():
+    """61.55(a)(6): nothing from either table present means Class A."""
+    assert nrc_waste_class(steel({"Fe55": 1e6})) == "Class A"

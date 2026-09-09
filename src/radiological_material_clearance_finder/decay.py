@@ -95,17 +95,43 @@ class DecayData:
         """
         base = cls()
         half_lives = dict(base._half_lives)
-        root = ElementTree.parse(str(path)).getroot()
+        try:
+            root = ElementTree.parse(str(path)).getroot()
+        except ElementTree.ParseError as error:
+            raise ValueError(f"{path} is not readable as a depletion chain: {error}") from None
+
+        seen = 0
         for element in root.iter("nuclide"):
             name = element.get("name")
-            raw = element.get("half_life")
-            if name is None or raw is None:
+            if name is None:
                 continue
             try:
                 canonical = _nuclide.normalise(name)
             except _nuclide.NuclideNameError:
                 continue
-            half_lives[canonical] = float(raw)
+            seen += 1
+            raw = element.get("half_life")
+            if raw is None:
+                # A chain entry with no half_life is one the chain calls stable,
+                # which has to be expressible or a chain can only ever add decay,
+                # never remove it. This is how OpenMC reads the same file.
+                half_lives.pop(canonical, None)
+                continue
+            try:
+                value = float(raw)
+            except ValueError:
+                raise ValueError(
+                    f"{path}: {canonical} has half_life {raw!r}, which is not a number"
+                ) from None
+            if not value > 0.0 or value != value or value == float("inf"):
+                raise ValueError(
+                    f"{path}: {canonical} has half_life {raw!r}. A half-life must be "
+                    f"positive and finite; omit the attribute to mark it stable."
+                )
+            half_lives[canonical] = value
+
+        if seen == 0:
+            raise ValueError(f"{path} contains no readable nuclide entries")
         return cls(half_lives, base._masses)
 
     def with_overrides(self, half_lives: Mapping[str, float]) -> "DecayData":

@@ -122,6 +122,7 @@ class Material:
         densities: Mapping[str, float],
         *,
         volume: float | None = None,
+        density: float | None = None,
         **kwargs,
     ) -> "Material":
         """Build from atom densities in atoms per barn-cm, OpenMC's unit.
@@ -133,7 +134,19 @@ class Material:
         Args:
             densities: Nuclide name to atoms/barn-cm.
             volume: Volume in cm3, only needed for total activity.
+            density: Not accepted. Present only so that passing it raises rather
+                than being swallowed and ignored.
+
+        Raises:
+            TypeError: If ``density`` is given.
         """
+        if density is not None:
+            raise TypeError(
+                "from_atom_densities derives the mass density from the atom "
+                "densities and the atomic masses, so passing density= could only "
+                "contradict the inventory. Drop it, or use from_specific_activities "
+                "if the density is the value you trust."
+            )
         material = cls(densities, volume=volume, _atoms_absolute=False, **kwargs)
         material._density = sum(
             amount * _ATOMS_PER_BARN_CM * material.decay_data.atomic_mass(nuc) / AVOGADRO
@@ -263,10 +276,33 @@ class Material:
                 amounts, such as atom densities or mass fractions, with no
                 volume to scale them by.
         """
-        if self._atoms is not None and self._atoms_absolute:
-            return self._relative_mass()
-        if self._density is not None and self.volume is not None:
-            return self._density * self.volume
+        from_atoms = (
+            self._relative_mass()
+            if self._atoms is not None and self._atoms_absolute
+            else None
+        )
+        from_volume = (
+            self._density * self.volume
+            if self._density is not None and self.volume is not None
+            else None
+        )
+        if from_atoms is not None and from_volume is not None:
+            # Over-determined. Disagreement means the density and the inventory
+            # describe different materials, and silently preferring either one
+            # would put the total activity out by whatever the ratio happens to
+            # be, with nothing to show for it.
+            if abs(from_atoms - from_volume) > 0.01 * max(from_atoms, from_volume):
+                raise ValueError(
+                    f"this material is over-determined and inconsistent: the atom "
+                    f"amounts weigh {from_atoms:.6g} g, but density times volume "
+                    f"gives {from_volume:.6g} g. Drop whichever of the two is not "
+                    f"meant to describe this material."
+                )
+            return from_atoms
+        if from_atoms is not None:
+            return from_atoms
+        if from_volume is not None:
+            return from_volume
         raise InsufficientDataError(
             "total mass is unknown. This material holds relative amounts, so "
             "pass volume=, or build it with from_atom_counts or from_masses."

@@ -14,6 +14,7 @@ table, and both are named explicitly rather than worked around:
 from __future__ import annotations
 
 import json
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Mapping
@@ -21,6 +22,9 @@ from typing import Callable, Mapping
 from . import nuclide as _nuclide
 
 __all__ = ["LimitSet", "limit_sets", "get_limit_set", "register_limit_set", "DYNAMIC_RULES"]
+
+#: Units a limit set may be expressed in.
+ACTIVITY_UNITS = frozenset({"Bq/g", "Ci/m3", "Bq"})
 
 _LIMITS_DIR = Path(__file__).parent / "data" / "limits"
 
@@ -36,11 +40,15 @@ class LimitSet:
         name: Stable identifier, such as ``UK_EPR16_out_of_scope``.
         label: Human readable description for reports.
         jurisdiction: Issuing authority, such as ``UK`` or ``Germany``.
-        units: Activity units the limits are in, ``Bq/g`` or ``Ci/m3``.
+        units: Activity units the limits are in: ``Bq/g``, ``Ci/m3``, or ``Bq``
+            for a total activity limit, which needs the material's mass.
         limits: Limit per canonical nuclide name.
         default_limit: Limit applied to a nuclide absent from ``limits``, or
-            ``None`` where the regulation has no catch-all. The UK sets have
-            one, at 0.01 Bq/g; the German and US sets do not.
+            ``None`` where the regulation has no catch-all. Three UK sets define
+            one: 0.01 Bq/g for ``UK_EPR16_out_of_scope`` and
+            ``UK_IRR17_notification``, and 0.1 Bq/g for
+            ``UK_IRR17_registration``. The other UK sets, and every German, US,
+            EU and IAEA set, have none.
         unlimited: Nuclides the source explicitly places no limit on. They are
             covered, and contribute nothing, which is different from being
             absent.
@@ -86,6 +94,64 @@ class LimitSet:
     url: str = ""
     retrieved: str = ""
     notes: str = ""
+
+    def __post_init__(self):
+        """Canonicalise and validate, so a hand-built set behaves like a loaded one.
+
+        A set built in Python went through none of the normalisation the JSON
+        loader applies, so ``{"Co-60": 0.1}`` silently matched nothing. Doing the
+        work here means both paths cannot diverge.
+
+        Limits are also required to be positive. A limit of zero means "no
+        activity of this is permitted", the strictest possible value, but the
+        sum of fractions cannot express that, and the evaluation used to skip it
+        as though the nuclide had no limit at all, which is the opposite.
+        Rejecting it here keeps that contradiction out of the data.
+        """
+        for field_name in (
+            "limits",
+            "metal_overrides",
+            "limits_per_gram",
+            "limits_upper",
+            "limits_secular_equilibrium",
+        ):
+            mapping = getattr(self, field_name)
+            object.__setattr__(self, field_name, _canonical_limits(mapping))
+
+        object.__setattr__(
+            self, "unlimited", tuple(_nuclide.normalise(n) for n in self.unlimited)
+        )
+        object.__setattr__(
+            self,
+            "secular_equilibrium",
+            {
+                _nuclide.normalise(parent): tuple(
+                    _nuclide.normalise(d) for d in daughters
+                )
+                for parent, daughters in self.secular_equilibrium.items()
+            },
+        )
+
+        if self.units not in ACTIVITY_UNITS:
+            raise ValueError(
+                f"{self.name}: units {self.units!r} is not one of "
+                f"{', '.join(sorted(ACTIVITY_UNITS))}"
+            )
+        if not self.threshold > 0.0:
+            raise ValueError(f"{self.name}: threshold must be positive, got {self.threshold}")
+        if self.default_limit is not None and not self.default_limit > 0.0:
+            raise ValueError(
+                f"{self.name}: default_limit must be positive, got {self.default_limit}"
+            )
+        for field_name in ("limits", "metal_overrides", "limits_per_gram",
+                           "limits_secular_equilibrium"):
+            for nuclide_name, value in getattr(self, field_name).items():
+                if not value > 0.0:
+                    raise ValueError(
+                        f"{self.name}: {field_name}[{nuclide_name}] is {value}, but a "
+                        f"limit must be positive. A limit of zero cannot be expressed "
+                        f"as a ratio and would be read as no limit at all."
+                    )
 
     def daughters_of(self, parent: str) -> tuple[str, ...]:
         """Daughters whose activity this set's limit for ``parent`` already covers."""
@@ -168,19 +234,9 @@ def _promote_sec_only_limits(limits: dict[str, float]) -> dict[str, float]:
 
 
 def _from_dict(payload: Mapping) -> LimitSet:
+    """Build a limit set from its JSON form. LimitSet.__post_init__ does the rest."""
     data = dict(payload)
     data["limits"] = _promote_sec_only_limits(_canonical_limits(data.get("limits", {})))
-    data["metal_overrides"] = _canonical_limits(data.get("metal_overrides", {}))
-    data["limits_per_gram"] = _canonical_limits(data.get("limits_per_gram", {}))
-    data["limits_upper"] = _canonical_limits(data.get("limits_upper", {}))
-    data["limits_secular_equilibrium"] = _canonical_limits(
-        data.get("limits_secular_equilibrium", {})
-    )
-    data["unlimited"] = tuple(_nuclide.normalise(n) for n in data.get("unlimited", ()))
-    data["secular_equilibrium"] = {
-        _nuclide.normalise(parent): tuple(_nuclide.normalise(d) for d in daughters)
-        for parent, daughters in data.get("secular_equilibrium", {}).items()
-    }
     known = {f for f in LimitSet.__dataclass_fields__}
     return LimitSet(**{k: v for k, v in data.items() if k in known})
 
@@ -234,7 +290,17 @@ def register_limit_set(limit_set: LimitSet) -> None:
     """Add a limit set at runtime, for a site-specific or draft table.
 
     Args:
-        limit_set: The set to register. Replaces any set of the same name.
+        limit_set: The set to register. Replaces any set of the same name,
+            warning first if that name came from the shipped regulatory data,
+            since shadowing a published table by accident would be hard to spot
+            in a result that only records the name.
     """
     _load_all()
+    if limit_set.name in _REGISTRY:
+        warnings.warn(
+            f"replacing the registered limit set {limit_set.name!r}, which came "
+            f"from the shipped regulatory data. Results will report that name "
+            f"while using the new table.",
+            stacklevel=2,
+        )
     _REGISTRY[limit_set.name] = limit_set

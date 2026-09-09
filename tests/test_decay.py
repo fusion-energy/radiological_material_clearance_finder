@@ -66,3 +66,18 @@ def test_overrides_replace_half_lives():
 def test_override_to_none_marks_a_nuclide_stable():
     data = decay.DecayData().with_overrides({"Co60": None})
     assert data.half_life("Co60") is None
+
+
+def test_a_metastable_state_falls_back_to_its_ground_state_mass():
+    """AME2020 tabulates ground states, so the isomer must borrow that mass."""
+    data = decay.DecayData(
+        half_lives={"Ag108_m1": 1.0}, atomic_masses={"Ag108": 107.9059502}
+    )
+    assert data.atomic_mass("Ag108_m1") == pytest.approx(107.9059502)
+    assert data.knows("Ag108_m1")
+
+
+def test_an_unknown_ground_state_still_raises():
+    data = decay.DecayData(half_lives={}, atomic_masses={"Ag108": 107.9059502})
+    with pytest.raises(decay.UnknownNuclideError):
+        data.atomic_mass("Xe135_m1")

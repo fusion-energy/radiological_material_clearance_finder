@@ -78,8 +78,9 @@ def time_to_clear(
 
     Returns:
         The cooling time in seconds at which the index first falls below the
-        threshold, ``0.0`` if the first sample already meets it, or ``None`` if
-        the series never does.
+        threshold. If the earliest sample already meets it, that sample's time
+        is returned rather than zero, since the series says nothing about
+        anything earlier. ``None`` if the series never meets it.
 
     Raises:
         ValueError: If fewer than two times are given.

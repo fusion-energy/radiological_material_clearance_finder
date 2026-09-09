@@ -23,7 +23,7 @@ __all__ = [
     "UK_LLW_ALPHA_BQ_PER_G",
     "UK_LLW_BETA_GAMMA_BQ_PER_G",
     "UK_HIGH_VOLUME_VLLW_BQ_PER_G",
-    "UK_HIGH_VOLUME_VLLW_TRITIUM_BQ_PER_G",
+    "UK_HIGH_VOLUME_VLLW_TRITIUM_AND_C14_BQ_PER_G",
 ]
 
 # The 2007 policy states these per tonne. One GBq/tonne is 1e9 Bq per 1e6 g,
@@ -34,8 +34,11 @@ UK_LLW_ALPHA_BQ_PER_G = 4.0e3
 UK_LLW_BETA_GAMMA_BQ_PER_G = 12.0e3
 #: High volume VLLW upper bound on total activity, from 4 MBq/te.
 UK_HIGH_VOLUME_VLLW_BQ_PER_G = 4.0
-#: High volume VLLW upper bound on tritium, from 40 MBq/te.
-UK_HIGH_VOLUME_VLLW_TRITIUM_BQ_PER_G = 40.0
+#: High volume VLLW upper bound on tritium and carbon-14 together, from
+#: 40 MBq/te. The 2007 policy gives them a shared allowance in both the low
+#: volume and the high volume categories, so they are summed rather than tritium
+#: being singled out.
+UK_HIGH_VOLUME_VLLW_TRITIUM_AND_C14_BQ_PER_G = 40.0
 
 
 def nrc_waste_class(material: Material, *, metal: bool = False) -> str:
@@ -130,7 +133,8 @@ class UKWasteCategory:
         category: ``"VLLW"``, ``"LLW"`` or ``"ILW"``.
         alpha: Alpha activity in Bq/g.
         beta_gamma: Beta and gamma activity in Bq/g.
-        tritium: Tritium activity in Bq/g, which has its own VLLW allowance.
+        tritium_and_c14: Tritium plus carbon-14 activity in Bq/g, which share
+            their own VLLW allowance.
         total: Total activity in Bq/g.
         reason: Why this category and not the one below it.
     """
@@ -138,7 +142,7 @@ class UKWasteCategory:
     category: str
     alpha: float
     beta_gamma: float
-    tritium: float
+    tritium_and_c14: float
     total: float
     reason: str
 
@@ -173,38 +177,40 @@ def uk_waste_category(material: Material) -> UKWasteCategory:
     per_nuclide = material.activity(units="Bq/g", by_nuclide=True)
     alpha = alpha_activity(material)
     beta_gamma = beta_gamma_activity(material)
-    tritium = per_nuclide.get("H3", 0.0)
+    tritium_and_c14 = per_nuclide.get("H3", 0.0) + per_nuclide.get("C14", 0.0)
     total = sum(per_nuclide.values())
-    non_tritium = total - tritium
+    remainder = total - tritium_and_c14
 
     if alpha > UK_LLW_ALPHA_BQ_PER_G:
         return UKWasteCategory(
-            "ILW", alpha, beta_gamma, tritium, total,
+            "ILW", alpha, beta_gamma, tritium_and_c14, total,
             f"alpha activity {alpha:.3g} Bq/g exceeds the LLW limit of "
             f"{UK_LLW_ALPHA_BQ_PER_G:g} Bq/g (4 GBq/te)",
         )
     if beta_gamma > UK_LLW_BETA_GAMMA_BQ_PER_G:
         return UKWasteCategory(
-            "ILW", alpha, beta_gamma, tritium, total,
+            "ILW", alpha, beta_gamma, tritium_and_c14, total,
             f"beta and gamma activity {beta_gamma:.3g} Bq/g exceeds the LLW limit "
             f"of {UK_LLW_BETA_GAMMA_BQ_PER_G:g} Bq/g (12 GBq/te)",
         )
-    if non_tritium > UK_HIGH_VOLUME_VLLW_BQ_PER_G:
+    if remainder > UK_HIGH_VOLUME_VLLW_BQ_PER_G:
         return UKWasteCategory(
-            "LLW", alpha, beta_gamma, tritium, total,
-            f"total activity {non_tritium:.3g} Bq/g excluding tritium exceeds the "
-            f"high volume VLLW limit of {UK_HIGH_VOLUME_VLLW_BQ_PER_G:g} Bq/g "
-            f"(4 MBq/te), and it is within both LLW limits",
+            "LLW", alpha, beta_gamma, tritium_and_c14, total,
+            f"total activity {remainder:.3g} Bq/g excluding tritium and carbon-14 "
+            f"exceeds the high volume VLLW limit of "
+            f"{UK_HIGH_VOLUME_VLLW_BQ_PER_G:g} Bq/g (4 MBq/te), and it is within "
+            f"both LLW limits",
         )
-    if tritium > UK_HIGH_VOLUME_VLLW_TRITIUM_BQ_PER_G:
+    if tritium_and_c14 > UK_HIGH_VOLUME_VLLW_TRITIUM_AND_C14_BQ_PER_G:
         return UKWasteCategory(
-            "LLW", alpha, beta_gamma, tritium, total,
-            f"tritium activity {tritium:.3g} Bq/g exceeds the high volume VLLW "
-            f"tritium allowance of {UK_HIGH_VOLUME_VLLW_TRITIUM_BQ_PER_G:g} Bq/g "
-            f"(40 MBq/te)",
+            "LLW", alpha, beta_gamma, tritium_and_c14, total,
+            f"tritium and carbon-14 activity {tritium_and_c14:.3g} Bq/g exceeds "
+            f"their shared high volume VLLW allowance of "
+            f"{UK_HIGH_VOLUME_VLLW_TRITIUM_AND_C14_BQ_PER_G:g} Bq/g (40 MBq/te)",
         )
     return UKWasteCategory(
-        "VLLW", alpha, beta_gamma, tritium, total,
-        f"total activity {non_tritium:.3g} Bq/g excluding tritium is within the "
-        f"high volume VLLW limit of {UK_HIGH_VOLUME_VLLW_BQ_PER_G:g} Bq/g (4 MBq/te)",
+        "VLLW", alpha, beta_gamma, tritium_and_c14, total,
+        f"total activity {remainder:.3g} Bq/g excluding tritium and carbon-14 is "
+        f"within the high volume VLLW limit of {UK_HIGH_VOLUME_VLLW_BQ_PER_G:g} "
+        f"Bq/g (4 MBq/te)",
     )

@@ -242,3 +242,85 @@ def test_the_scope_rule_does_not_fire_when_there_are_no_radionuclides():
     assert not result.out_of_scope
     assert not result.clearable
     assert result.index == pytest.approx(1e6)
+
+
+def test_metal_overrides_replace_and_add_limits():
+    """The NRC lists activated metal as its own rows, so an override may add one."""
+    limits = LimitSet(
+        name="TOY_METAL", label="toy", units="Bq/g",
+        limits={"C14": 8.0},
+        metal_overrides={"C14": 80.0, "Ni59": 220.0},
+    )
+    material = Material.from_specific_activities({"C14": 8.0, "Ni59": 220.0})
+
+    plain = clearance_index(material, limits, metal=False)
+    assert plain.index == pytest.approx(1.0)
+    assert plain.uncovered == {"Ni59": 220.0}, "Ni59 has no non-metal limit"
+
+    activated = clearance_index(material, limits, metal=True)
+    assert activated.index == pytest.approx(0.1 + 1.0)
+    assert activated.uncovered == {}
+
+
+def test_the_nrc_short_lived_rule_limits_by_half_life():
+    """Table 2 gives everything under five years a 700 Ci/m3 Class A limit."""
+    limits = LimitSet(
+        name="TOY_DYNAMIC", label="toy", units="Bq/g",
+        limits={}, dynamic_rule="nrc_short_lived_class_a",
+    )
+    # Mn-54 is 312 days, Cs-137 is 30 years.
+    result = clearance_index(
+        Material.from_specific_activities({"Mn54": 700.0, "Cs137": 1e6}), limits
+    )
+    assert result.limits_used == {"Mn54": 700.0}
+    assert result.index == pytest.approx(1.0)
+    assert result.uncovered == {"Cs137": 1e6}
+
+
+def test_the_threshold_boundary_is_exclusive():
+    """An index of exactly the threshold does not clear."""
+    limits = LimitSet(name="TOY_EDGE", label="toy", units="Bq/g", limits={"Co60": 1.0})
+    assert not clearance_index(
+        Material.from_specific_activities({"Co60": 1.0}), limits
+    ).clearable
+    assert clearance_index(
+        Material.from_specific_activities({"Co60": 0.999}), limits
+    ).clearable
+
+
+def test_clearable_routes_are_ordered_by_margin():
+    material = Material({"Fe56": 1e22, "Co60": 1e6})
+    routes = clearable_routes(material)
+    assert routes
+    margins = [
+        clearance_index(material, name).index / get_limit_set(name).threshold
+        for name in routes
+    ]
+    assert margins == sorted(margins), "routes are not ordered by margin"
+
+
+def test_a_limit_set_built_in_python_canonicalises_its_keys():
+    """Otherwise a hand-written "Co-60" would silently match nothing."""
+    limits = LimitSet(
+        name="TOY_CANON", label="toy", units="Bq/g",
+        limits={"Co-60": 1.0}, secular_equilibrium={"Sr-90": ("Y-90",)},
+    )
+    assert limits.limits == {"Co60": 1.0}
+    assert limits.secular_equilibrium == {"Sr90": ("Y90",)}
+    result = clearance_index(Material.from_specific_activities({"Co60": 2.0}), limits)
+    assert result.index == pytest.approx(2.0)
+
+
+@pytest.mark.parametrize(
+    "kwargs, match",
+    [
+        ({"units": "sieverts"}, "not one of"),
+        ({"threshold": 0.0}, "threshold must be positive"),
+        ({"limits": {"Co60": 0.0}}, "must be positive"),
+        ({"default_limit": -1.0}, "default_limit must be positive"),
+    ],
+)
+def test_limit_sets_reject_values_that_cannot_mean_anything(kwargs, match):
+    base = {"name": "TOY_BAD", "label": "toy", "units": "Bq/g", "limits": {"Co60": 1.0}}
+    with pytest.raises(ValueError, match=match):
+        LimitSet(**{**base, **kwargs})

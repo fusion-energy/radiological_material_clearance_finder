@@ -97,3 +97,14 @@ def _expected_crossing(time_a, index_a, time_b, index_b, threshold=1.0):
 def test_a_series_needs_at_least_two_points():
     with pytest.raises(ValueError, match="at least two"):
         time_to_clear({0.0: decayed(10.0, 0.0)}, COBALT)
+
+
+def test_the_series_need_not_be_given_in_order():
+    """The docstring promises this, so it is pinned."""
+    times = [0.0, 5e8, 1e9, 2e9]
+    ascending = {t: decayed(10.0, t) for t in times}
+    shuffled = {t: decayed(10.0, t) for t in [1e9, 0.0, 2e9, 5e8]}
+    assert list(index_series(shuffled, COBALT)) == sorted(times)
+    assert time_to_clear(shuffled, COBALT) == pytest.approx(
+        time_to_clear(ascending, COBALT)
+    )

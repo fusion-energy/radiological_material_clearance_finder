@@ -21,7 +21,7 @@ dependencies = []
 test = ["pytest"]
 
 [project.urls]
-Homepage = "https://github.com/shimwell/radiological_material_clearance_finder"
+Homepage = "https://github.com/fusion-energy/radiological_material_clearance_finder"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/radiological_material_clearance_finder"]

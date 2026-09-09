@@ -108,3 +108,11 @@ def test_the_series_need_not_be_given_in_order():
     assert time_to_clear(shuffled, COBALT) == pytest.approx(
         time_to_clear(ascending, COBALT)
     )
+
+
+def test_an_already_clear_series_returns_its_first_sample_not_zero():
+    """The series says nothing before its earliest sample, so it cannot claim zero."""
+    series = {100.0: decayed(0.5, 0.0), 1e8: decayed(0.5, 1e8)}
+    assert time_to_clear(series, COBALT) == 100.0
+    later = {5e7: decayed(0.5, 0.0), 1e8: decayed(0.5, 1e8)}
+    assert time_to_clear(later, COBALT) == 5e7

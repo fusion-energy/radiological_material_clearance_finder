@@ -103,16 +103,31 @@ def parse_limits(table_body: str, column: int, label: str) -> tuple[dict, dict]:
     return limits, alternatives
 
 
-def parse_daughters(table_body: str) -> dict[str, list[str]]:
-    """Read Table 3, parent to the daughters its value already accounts for."""
-    daughters: dict[str, list[str]] = {}
+def parse_daughters(table_body: str) -> tuple[dict, dict]:
+    """Read a secular equilibrium table, keeping the "+" and "sec" lists apart.
+
+    A parent can appear twice with two different lists. U-238 has three short
+    lived progeny under "U-238+" and a fourteen member chain under "U-238sec",
+    and each list belongs to its own limit value: 1 Bq/g for the "+" row and
+    0.01 Bq/g for the "sec" row in the out of scope column. Merging them lets
+    the fourteen member chain be excluded while the parent is charged against
+    the value that only accounts for three of them, which understates the index
+    by a factor of a hundred.
+
+    Returns:
+        ``(plus, sec)``, each mapping a parent to the daughters its own value
+        accounts for.
+    """
+    plus: dict[str, list[str]] = {}
+    sec: dict[str, list[str]] = {}
     for cells in rows(table_body):
         if len(cells) < 2:
             continue
         try:
-            parent, _marker = nuc.parse_regulatory(cells[0])
+            parent, marker = nuc.parse_regulatory(cells[0])
         except nuc.NuclideNameError:
             continue
+        daughters = sec if marker == "sec" else plus
         names = []
         for piece in re.split(r"[,;]", cells[1]):
             piece = piece.strip()
@@ -128,7 +143,7 @@ def parse_daughters(table_body: str) -> dict[str, list[str]]:
             for child in names:
                 if child not in daughters[parent]:
                     daughters[parent].append(child)
-    return daughters
+    return plus, sec
 
 
 def find_catch_all(table_body: str) -> float | None:
@@ -159,14 +174,15 @@ def _quiet_value(cell: str) -> float | None:
         return None
 
 
-def check_markers_have_daughters(table_body: str, daughters: dict, label: str) -> None:
-    """Every marked parent must have a row in the daughter table."""
+def check_markers_have_daughters(table_body: str, maps: tuple, label: str) -> None:
+    """Every marked parent must have a row in the matching daughter table."""
+    plus, sec = maps
     missing = []
     for _key, marker, cells in nuclide_rows(table_body):
         if marker is None:
             continue
         parent, _ = nuc.parse_regulatory(cells[0])
-        if parent not in daughters:
+        if parent not in (sec if marker == "sec" else plus):
             missing.append(cells[0])
     if missing:
         raise ValueError(
@@ -191,6 +207,7 @@ def main() -> None:
     _, table3 = tables["Table 3"]
 
     daughters = parse_daughters(table3)
+    plus_daughters, sec_daughters = daughters
     check_markers_have_daughters(table2, daughters, "Table 2")
 
     artificial, artificial_alt = parse_limits(table2, 1, "EPR16 Table 2")
@@ -209,7 +226,8 @@ def main() -> None:
             "limits": artificial,
             "limits_secular_equilibrium": artificial_alt,
             "default_limit": catch_all,
-            "secular_equilibrium": {k: v for k, v in daughters.items()},
+            "secular_equilibrium": plus_daughters,
+            "secular_equilibrium_sec": sec_daughters,
             "min_half_life_scope": SHORT_HALF_LIFE_SCOPE,
             "threshold": 1.0,
             "source": f"{CITATION}, Part 3 Table 2",
@@ -237,7 +255,8 @@ def main() -> None:
             "units": "Bq/g",
             "limits": norm_solid,
             "limits_secular_equilibrium": norm_alt,
-            "secular_equilibrium": {k: v for k, v in daughters.items()},
+            "secular_equilibrium": plus_daughters,
+            "secular_equilibrium_sec": sec_daughters,
             "threshold": 1.0,
             "source": f"{CITATION}, Part 3 Table 1",
             "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
@@ -266,6 +285,7 @@ def main() -> None:
         _, table5 = tables["Table 5"]
         _, table8 = tables["Table 8"]
         part6_daughters = parse_daughters(table8)
+        part6_plus, part6_sec = part6_daughters
         check_markers_have_daughters(table5, part6_daughters, "Table 5")
         material_conc, material_alt = parse_limits(table5, 2, "EPR16 Table 5 concentration")
         if material_conc:
@@ -277,7 +297,8 @@ def main() -> None:
                     "units": "Bq/g",
                     "limits": material_conc,
                     "limits_secular_equilibrium": material_alt,
-                    "secular_equilibrium": part6_daughters,
+                    "secular_equilibrium": part6_plus,
+                    "secular_equilibrium_sec": part6_sec,
                     "threshold": 1.0,
                     "source": f"{CITATION}, Part 6 Table 5",
                     "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
@@ -299,7 +320,8 @@ def main() -> None:
 
     for entry in sets:
         print(f"{entry['name']:32} {len(entry['limits']):4} limits")
-    print(f"catch-all {catch_all} Bq/g, {len(daughters)} secular equilibrium parents")
+    print(f"catch-all {catch_all} Bq/g, {len(plus_daughters)} '+' parents, "
+          f"{len(sec_daughters)} 'sec' parents")
     print(f"wrote {DATA / 'uk_epr16.json'}")
 
 

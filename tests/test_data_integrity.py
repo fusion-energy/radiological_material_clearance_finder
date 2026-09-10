@@ -179,8 +179,13 @@ def test_epr16_part6_uses_its_own_secular_equilibrium_table():
     part3 = get_limit_set("UK_EPR16_out_of_scope").secular_equilibrium
     part6 = get_limit_set("UK_EPR16_exempt_material").secular_equilibrium
     assert part3 != part6
-    assert part6["U235"] == ("Th231",)
-    assert len(part3["U235"]) > 1
+    assert len(part3) == 57 and len(part6) == 30
+    # Ra-226 is the clearest case: Table 8 carries the chain four steps further,
+    # down to Po-210, where Table 3 stops at Po-214.
+    assert part3["Ra226"] == ("Rn222", "Po218", "Pb214", "Bi214", "Po214")
+    assert part6["Ra226"] == (
+        "Po218", "Pb214", "Bi214", "Pb210", "Bi210", "Po210", "Po214",
+    )
 
 
 def test_irr17_keeps_the_plain_and_marked_u240_limits_apart():
@@ -253,3 +258,48 @@ def test_alpha_fractions_do_not_exceed_the_measured_branches():
     # And a pure alpha emitter stays at one.
     for name in ("Am241", "Pu239", "Po210", "Ra226"):
         assert data.alpha_fraction(name) == pytest.approx(1.0), name
+
+
+def test_the_plus_and_sec_daughter_lists_are_kept_apart():
+    """They carry different limits, so merging them understates the index.
+
+    EPR 2016 gives U-238 three short lived progeny under "U-238+" at 1 Bq/g and
+    a fourteen member chain under "U-238sec" at 0.01 Bq/g. Excluding the long
+    list while charging the parent against the short list's value made natural
+    uranium in equilibrium clear at fifty times the set's own limit.
+    """
+    limit_set = get_limit_set("UK_EPR16_out_of_scope")
+    assert limit_set.secular_equilibrium["U238"] == ("Th234", "Pa234_m1", "Pa234")
+    assert len(limit_set.secular_equilibrium_sec["U238"]) == 14
+    assert limit_set.limits["U238"] == 1.0
+    assert limit_set.limits["U238_sec"] == 0.01
+
+
+def test_natural_uranium_in_equilibrium_does_not_clear():
+    """The whole chain value applies when the whole chain is present."""
+    from radiological_material_clearance_finder import Material, clearance_index
+
+    limit_set = get_limit_set("UK_EPR16_out_of_scope")
+    activities = {"U238": 0.5}
+    activities.update({d: 0.5 for d in limit_set.secular_equilibrium_sec["U238"]})
+    result = clearance_index(
+        Material.from_specific_activities(activities), "UK_EPR16_out_of_scope"
+    )
+    assert result.limits_used["U238"] == 0.01, "the sec row should apply"
+    assert result.index == pytest.approx(50.0)
+    assert not result.clearable
+
+
+def test_the_plus_value_still_applies_without_the_wider_chain():
+    """Only the short lived progeny present means only the "+" value is engaged."""
+    from radiological_material_clearance_finder import Material, clearance_index
+
+    result = clearance_index(
+        Material.from_specific_activities(
+            {"U238": 0.5, "Th234": 0.5, "Pa234": 0.5}
+        ),
+        "UK_EPR16_out_of_scope",
+    )
+    assert result.limits_used["U238"] == 1.0
+    assert result.index == pytest.approx(0.5)
+    assert sorted(result.excluded) == ["Pa234", "Th234"]

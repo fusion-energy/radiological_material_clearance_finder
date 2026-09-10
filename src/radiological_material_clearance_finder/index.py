@@ -234,22 +234,44 @@ def _resolve_equilibrium(
     credited: dict[str, float] = {}
     overrides: dict[str, float] = {}
 
-    for parent, daughters in limit_set.secular_equilibrium.items():
+    parents = set(limit_set.secular_equilibrium) | set(limit_set.secular_equilibrium_sec)
+    for parent in sorted(parents):
         if parent not in present:
             continue
+
+        # A parent can carry two published values with two different daughter
+        # lists: a "+" value covering a few short lived progeny, and a much
+        # stricter whole chain "sec" value covering the lot. Applying the "+"
+        # value while excluding the "sec" list charges the parent against a
+        # limit that accounts for only part of what was removed, which is how
+        # natural uranium came to clear at fifty times the set's own limit.
+        # Pick the value whose own list matches what is actually there.
+        plus = limit_set.secular_equilibrium.get(parent, ())
+        chain = limit_set.secular_equilibrium_sec.get(parent, ())
+        chain_limit = limit_set.limits.get(f"{parent}_sec")
+        beyond_plus = [d for d in chain if d in present and d not in plus]
+        if chain_limit is not None and beyond_plus:
+            daughters = chain
+            overrides[parent] = chain_limit
+        else:
+            daughters = plus
+
         parent_limited = (
             parent in limits
             or parent in limit_set.unlimited
             or parent in limit_set.limits_secular_equilibrium
+            or parent in overrides
             or default_applies
         )
         if not parent_limited:
+            overrides.pop(parent, None)
             continue
 
         found = [d for d in daughters if d in present and d != parent]
         if not found:
+            overrides.pop(parent, None)
             continue
-        if parent in limit_set.limits_secular_equilibrium:
+        if parent not in overrides and parent in limit_set.limits_secular_equilibrium:
             overrides[parent] = limit_set.limits_secular_equilibrium[parent]
 
         parent_activity = activities.get(parent, 0.0)

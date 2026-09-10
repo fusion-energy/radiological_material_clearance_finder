@@ -54,7 +54,13 @@ class LimitSet:
             absent.
         secular_equilibrium: Parent to the daughters whose contribution the
             parent's limit already includes, straight from the regulation's own
-            table.
+            table. These are the "+" rows.
+        secular_equilibrium_sec: Parent to the daughters covered by its whole
+            chain "sec" value, which is a different and usually much longer list
+            carrying a different and much stricter limit. UK EPR 2016 gives
+            U-238 three progeny at 1 Bq/g under "U-238+" and fourteen at 0.01
+            Bq/g under "U-238sec". The stricter value is stored in ``limits``
+            under a ``_sec`` key.
         limits_secular_equilibrium: The limit to use for a parent that the
             source lists twice, once plain and once marked "+", when its
             daughters are actually present. StrlSchV gives Th-232 as 10 Bq/g
@@ -83,6 +89,7 @@ class LimitSet:
     default_limit: float | None = None
     unlimited: tuple[str, ...] = ()
     secular_equilibrium: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    secular_equilibrium_sec: dict[str, tuple[str, ...]] = field(default_factory=dict)
     limits_secular_equilibrium: dict[str, float] = field(default_factory=dict)
     metal_overrides: dict[str, float] = field(default_factory=dict)
     limits_per_gram: dict[str, float] = field(default_factory=dict)
@@ -121,16 +128,17 @@ class LimitSet:
         object.__setattr__(
             self, "unlimited", tuple(_nuclide.normalise(n) for n in self.unlimited)
         )
-        object.__setattr__(
-            self,
-            "secular_equilibrium",
-            {
-                _nuclide.normalise(parent): tuple(
-                    _nuclide.normalise(d) for d in daughters
-                )
-                for parent, daughters in self.secular_equilibrium.items()
-            },
-        )
+        for field_name in ("secular_equilibrium", "secular_equilibrium_sec"):
+            object.__setattr__(
+                self,
+                field_name,
+                {
+                    _nuclide.normalise(parent): tuple(
+                        _nuclide.normalise(d) for d in daughters
+                    )
+                    for parent, daughters in getattr(self, field_name).items()
+                },
+            )
 
         if self.units not in ACTIVITY_UNITS:
             raise ValueError(

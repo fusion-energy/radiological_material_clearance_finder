@@ -7,7 +7,7 @@ Summenformel, the UK calls it the summation rule, the NRC calls it the sum of
 fractions rule and Fetter calls the result a waste disposal rating. This module
 implements it once.
 
-What differs between regulations, and what :class:`ClearanceResult` therefore
+What differs between regulations, and what `ClearanceResult` therefore
 records, is what happens to a nuclide that is *not* simply looked up: one whose
 parent already accounts for it, one the table does not list, and one the
 regulation places outside its scope entirely.
@@ -299,7 +299,7 @@ def clearance_index(
 
     Args:
         material: The inventory to assess.
-        limit_set: A registered limit set name, or a :class:`LimitSet`.
+        limit_set: A registered limit set name, or a `LimitSet`.
         metal: Whether the material is activated metal, which changes some NRC
             limits and adds others.
         apply_default_limit: Whether to apply the set's catch-all limit to
@@ -312,7 +312,7 @@ def clearance_index(
             regulation intends.
 
     Returns:
-        A :class:`ClearanceResult` carrying the index and everything needed to
+        A `ClearanceResult` carrying the index and everything needed to
         judge it, including any activity that fell outside the sum.
 
     Raises:
@@ -396,7 +396,7 @@ def clearance_indices(
     Args:
         material: The inventory to assess.
         names: Limit set names, defaulting to every registered set.
-        **kwargs: Passed through to :func:`clearance_index`.
+        **kwargs: Passed through to `clearance_index`.
 
     Returns:
         Results keyed by limit set name.
@@ -422,7 +422,7 @@ def clearable_routes(
     Args:
         material: The inventory to assess.
         names: Limit set names, defaulting to every registered set.
-        **kwargs: Passed through to :func:`clearance_index`.
+        **kwargs: Passed through to `clearance_index`.
 
     Returns:
         Names of the sets whose index is below their threshold.

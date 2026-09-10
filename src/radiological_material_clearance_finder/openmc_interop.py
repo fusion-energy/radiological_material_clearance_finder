@@ -12,7 +12,7 @@ __all__ = ["from_openmc_material", "from_depletion_results"]
 
 
 def from_openmc_material(openmc_material, *, decay_data=None) -> Material:
-    """Convert an ``openmc.Material`` into a :class:`Material`.
+    """Convert an ``openmc.Material`` into a `Material`.
 
     Reads the atom densities in atoms per barn-cm, which fixes the mass density
     too, so the result supports both the Bq/g and the Ci/m3 limit sets.
@@ -23,7 +23,7 @@ def from_openmc_material(openmc_material, *, decay_data=None) -> Material:
         decay_data: Half-life and mass tables to use instead of the defaults.
 
     Returns:
-        The equivalent :class:`Material`, carrying the OpenMC material's name
+        The equivalent `Material`, carrying the OpenMC material's name
         and volume where it has them.
     """
     densities = openmc_material.get_nuclide_atom_densities()
@@ -39,7 +39,7 @@ def from_depletion_results(results, material_id, *, decay_data=None) -> dict[flo
     """Build a cooling time series from an OpenMC depletion results file.
 
     The result is in the form
-    :func:`~radiological_material_clearance_finder.cooling.time_to_clear`
+    `time_to_clear`
     expects, so a depletion can be taken straight through to a clearance date.
 
     Args:

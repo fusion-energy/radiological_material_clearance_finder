@@ -14,12 +14,12 @@ regulations, and by how much:
 
 Every regulation here uses the same arithmetic, a sum of activity-to-limit
 ratios that must stay below one. What differs is the tables, and those are data:
-see :func:`limit_sets` for what is available and
-:func:`~radiological_material_clearance_finder.limits.get_limit_set` for the
+see `limit_sets` for what is available and
+`get_limit_set` for the
 provenance of any one of them.
 
 OpenMC is not a dependency. To start from an OpenMC material, use
-:func:`~radiological_material_clearance_finder.openmc_interop.from_openmc_material`,
+`from_openmc_material`,
 which imports OpenMC only when called.
 """
 from __future__ import annotations

@@ -37,9 +37,9 @@ def index_series(
     Args:
         series: Cooling time in seconds to the material at that time.
         limit_set: A registered limit set name, or a
-            :class:`~radiological_material_clearance_finder.limits.LimitSet`.
+            `LimitSet`.
         **kwargs: Passed through to
-            :func:`~radiological_material_clearance_finder.index.clearance_index`.
+            `clearance_index`.
 
     Returns:
         Cooling time to index, ordered by time.
@@ -69,12 +69,12 @@ def time_to_clear(
         series: Cooling time in seconds to the material at that time. Times need
             not be sorted or evenly spaced.
         limit_set: A registered limit set name, or a
-            :class:`~radiological_material_clearance_finder.limits.LimitSet`.
+            `LimitSet`.
         allow_ingrowth: Return the first crossing even when the index later
             climbs back above the threshold, rather than raising
-            :class:`IngrowthError`.
+            `IngrowthError`.
         **kwargs: Passed through to
-            :func:`~radiological_material_clearance_finder.index.clearance_index`.
+            `clearance_index`.
 
     Returns:
         The cooling time in seconds at which the index first falls below the

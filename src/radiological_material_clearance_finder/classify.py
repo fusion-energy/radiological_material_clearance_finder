@@ -98,11 +98,11 @@ def alpha_activity(material: Material, units: str = "Bq/g") -> float:
     """Activity from alpha emission, weighted by each nuclide's alpha branch.
 
     Bi-212 branches 35.94 percent alpha, so it contributes that share of its
-    activity here and the rest to :func:`beta_gamma_activity`.
+    activity here and the rest to `beta_gamma_activity`.
 
     Args:
         material: The inventory.
-        units: Any unit :meth:`Material.activity` accepts.
+        units: Any unit `activity` accepts.
     """
     activities = material.activity(units=units, by_nuclide=True)
     return sum(
@@ -116,7 +116,7 @@ def beta_gamma_activity(material: Material, units: str = "Bq/g") -> float:
 
     Args:
         material: The inventory.
-        units: Any unit :meth:`Material.activity` accepts.
+        units: Any unit `activity` accepts.
     """
     activities = material.activity(units=units, by_nuclide=True)
     return sum(
@@ -171,7 +171,7 @@ def uk_waste_category(material: Material) -> UKWasteCategory:
         material: The inventory to classify.
 
     Returns:
-        A :class:`UKWasteCategory` holding the category and the activities it
+        A `UKWasteCategory` holding the category and the activities it
         was decided on.
     """
     per_nuclide = material.activity(units="Bq/g", by_nuclide=True)

@@ -15,7 +15,7 @@ from .decay import AVOGADRO, BECQUEREL_PER_CURIE, DecayData, default_decay_data
 
 __all__ = ["Material", "ACTIVITY_UNITS"]
 
-#: Activity units understood by :meth:`Material.activity`.
+#: Activity units understood by `activity`.
 ACTIVITY_UNITS = ("Bq", "Bq/g", "Bq/kg", "Bq/cm3", "Bq/m3", "Ci", "Ci/m3")
 
 #: 1 atom/barn-cm is this many atoms per cubic centimetre.
@@ -58,7 +58,7 @@ class Material:
     sets and no density is needed. Volumetric limit sets (Ci/m3) do need one,
     supplied as ``density`` or derived from atom densities.
 
-    .. warning::
+    Warning:
         The Bq/g denominator is the mass of **everything** in the mapping, so
         stable isotopes must be included. Passing only the radioactive nuclides
         of an activated steel gives a mass thousands of times too small and a
@@ -66,7 +66,7 @@ class Material:
 
     Args:
         atoms: Nuclide name to atom count. Names may be spelled in any form
-            :func:`~radiological_material_clearance_finder.nuclide.normalise`
+            `normalise`
             accepts.
         density: Mass density in g/cm3. Only needed for volumetric limit sets.
         volume: Volume in cm3. Only needed for total activity in Bq or Ci.
@@ -336,7 +336,7 @@ class Material:
     # ------------------------------------------------------------------
     # activity
     # ------------------------------------------------------------------
-    def specific_activity(self, by_nuclide: bool = False):
+    def specific_activity(self, by_nuclide: bool = False) -> "float | dict[str, float]":
         """Specific activity in Bq/g.
 
         Scale invariant, so this works from atom counts, atom densities or atom
@@ -360,11 +360,13 @@ class Material:
             }
         return result if by_nuclide else sum(result.values())
 
-    def activity(self, units: str = "Bq/g", by_nuclide: bool = False):
+    def activity(
+        self, units: str = "Bq/g", by_nuclide: bool = False
+    ) -> "float | dict[str, float]":
         """Activity in the requested units.
 
         Args:
-            units: One of :data:`ACTIVITY_UNITS`.
+            units: One of `ACTIVITY_UNITS`.
             by_nuclide: Return a dict keyed by nuclide rather than the total.
 
         Returns:

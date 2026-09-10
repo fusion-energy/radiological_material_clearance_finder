@@ -5,7 +5,7 @@ The canonical form used throughout this package is the one OpenMC and GND use,
 OpenMC material and matching it avoids a translation layer at the boundary.
 
 Regulatory tables spell nuclides differently again (``Co-60``, ``Ag-108m``,
-``U-238sec``, ``Sr-90+``), so :func:`parse_regulatory` handles those and
+``U-238sec``, ``Sr-90+``), so `parse_regulatory` handles those and
 separates the secular-equilibrium marker from the nuclide identity.
 """
 from __future__ import annotations
@@ -131,7 +131,7 @@ def normalise(name: str) -> str:
     ``Ag108_m1`` and ``Hf-178n`` becomes ``Hf178_m2``. A trailing ``+`` is stripped, since it marks a secular
     equilibrium value rather than a different nuclide, but ``sec`` is not
     accepted here because a ``sec`` value is a separate table entry. Use
-    :func:`parse_regulatory` when reading a regulatory table.
+    `parse_regulatory` when reading a regulatory table.
 
     Args:
         name: A nuclide name in any accepted spelling.

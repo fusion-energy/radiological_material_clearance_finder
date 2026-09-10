@@ -9,7 +9,7 @@ table, and both are named explicitly rather than worked around:
   need the material's density before they can be compared against Ci/m3, and
 * limits that depend on the material's own nuclides (the NRC Class A rule that
   anything with a half-life under five years takes a 700 Ci/m3 limit), held in
-  :data:`DYNAMIC_RULES`.
+  `DYNAMIC_RULES`.
 """
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ class LimitSet:
         limits_per_gram: Limits in nCi/g, converted using the material density.
         limits_upper: Upper end of a limit given as a range in the source, kept
             for reference. ``limits`` holds the conservative lower end.
-        dynamic_rule: Key into :data:`DYNAMIC_RULES` for a rule that depends on
+        dynamic_rule: Key into `DYNAMIC_RULES` for a rule that depends on
             the material's own nuclides.
         min_half_life_scope: Half-life in seconds below which, if *every*
             radionuclide present falls under it, the material is outside the
@@ -278,7 +278,7 @@ def get_limit_set(name: str | LimitSet) -> LimitSet:
     """Look up a limit set by name.
 
     Args:
-        name: A registered name, or an already built :class:`LimitSet`.
+        name: A registered name, or an already built `LimitSet`.
 
     Raises:
         KeyError: If no such set is registered, listing the ones that are.

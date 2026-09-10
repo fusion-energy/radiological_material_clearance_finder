@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import html
 import re
+import time
+import urllib.error
+import urllib.request
 
 # legislation.gov.uk marks exponents with <Superior>, so 10^2 is
 # "10<Superior>2</Superior>". Flattening tags first would turn that into "102".
@@ -125,3 +128,46 @@ def check_regulatory(values: dict[str, float], label: str) -> None:
             f"power of ten, which usually means superscript markup was flattened: "
             f"{bad[:8]}"
         )
+
+
+#: Sent on every fetch. Some of these services answer differently, or not at
+#: all, without a browser user agent.
+USER_AGENT = "Mozilla/5.0 (compatible; radiological-material-clearance-finder)"
+
+
+def fetch(url: str, *, timeout: float = 120.0, attempts: int = 4, encoding: str = "utf-8") -> str:
+    """Fetch a regulatory source, retrying on transient failures.
+
+    These are government and institutional sites, and reaching them from a CI
+    runner is markedly less reliable than from a workstation: some rate limit,
+    some answer slowly, and at least one appears to treat cloud address ranges
+    differently. A single timeout should not be reported as a change in the law,
+    so this retries with a widening delay before giving up.
+
+    Args:
+        url: The source to fetch.
+        timeout: Seconds to wait for each individual attempt.
+        attempts: How many times to try before raising.
+        encoding: Character set of the response. The German source is
+            ISO-8859-1 and decoding it as UTF-8 fails on the first umlaut.
+
+    Returns:
+        The decoded body.
+
+    Raises:
+        RuntimeError: If every attempt fails, naming the URL and the last error.
+    """
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    last = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as handle:
+                return handle.read().decode(encoding, errors="replace")
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            last = error
+            if attempt < attempts:
+                delay = 5 * attempt
+                print(f"  attempt {attempt}/{attempts} for {url} failed ({error}), "
+                      f"retrying in {delay}s")
+                time.sleep(delay)
+    raise RuntimeError(f"could not fetch {url} after {attempts} attempts: {last}")

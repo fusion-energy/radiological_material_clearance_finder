@@ -1,0 +1,40 @@
+name: sources
+
+# Re-derives every downloadable regulatory table and diffs it against the
+# shipped data, so an amendment to a regulation surfaces deliberately.
+#
+# Deliberately NOT run on pull requests. It depends on reaching several
+# government and institutional sites, which is markedly less reliable from a CI
+# runner than from a workstation, and a check that is red for network reasons on
+# every pull request trains people to ignore the one thing meant to catch a
+# change in the law. On a schedule, a failure is worth reading.
+on:
+  schedule:
+    # Mondays, early. Regulations do not change often.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The IAEA table is published only as a PDF.
+      - name: Install poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Install
+        run: python -m pip install -e .
+
+      - name: Diff the shipped tables against their official sources
+        run: python tools/verify_tables.py

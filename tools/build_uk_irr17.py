@@ -31,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from _tables import fetch as _fetch  # noqa: E402
 from _tables import check_regulatory, parse_value, rows, tabulars  # noqa: E402
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
@@ -44,9 +45,8 @@ _QUALIFIER = re.compile(r"^(?P<base>[^()]+?)\s*\((?P<qualifier>[^)]*)\)\s*$")
 
 
 def fetch(url: str) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(request, timeout=120) as handle:
-        return handle.read().decode("utf-8", errors="replace")
+    """Fetch the source, retrying on the transient failures CI runners see."""
+    return _fetch(url)
 
 
 def read_name(cell: str) -> tuple[str, str | None, str | None]:

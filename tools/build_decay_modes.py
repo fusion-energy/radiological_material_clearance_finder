@@ -50,17 +50,30 @@ def parse(text: str) -> dict[str, float]:
             name = nuc.normalise(f"{symbol}{mass}")
         except (ValueError, KeyError, nuc.NuclideNameError):
             continue
+        # An alpha branch with no measured intensity gets only the intensity the
+        # measured branches leave unaccounted for. Giving it a flat 100 percent
+        # made nuclides that are almost entirely beta emitters look like pure
+        # alpha emitters, which would put their activity in the wrong half of
+        # the UK alpha and beta or gamma split.
         alpha = 0.0
+        measured = 0.0
+        unmeasured_alpha = False
         for index in (1, 2, 3):
             mode = (row.get(f"decay_{index}") or "").strip().upper()
-            if mode != "A":
+            if not mode:
                 continue
             raw = (row.get(f"decay_{index}_%") or "").strip()
             try:
-                alpha += float(raw)
+                value = float(raw)
             except ValueError:
-                # A branch known to exist but with no measured intensity.
-                alpha += 100.0
+                if mode == "A":
+                    unmeasured_alpha = True
+                continue
+            measured += value
+            if mode == "A":
+                alpha += value
+        if unmeasured_alpha:
+            alpha += max(0.0, 100.0 - measured)
         if alpha > 0.0:
             fractions[name] = min(alpha, 100.0) / 100.0
     return fractions

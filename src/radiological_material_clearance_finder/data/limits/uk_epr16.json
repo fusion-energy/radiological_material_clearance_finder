@@ -558,7 +558,7 @@
    "threshold": 1.0,
    "source": "Environmental Permitting (England and Wales) Regulations 2016, Schedule 23, Part 3 Table 2",
    "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "Below these concentrations a substance is not radioactive material or radioactive waste, which is the UK equivalent of clearance. The catch-all of 0.01 Bq/g applies to any artificial radionuclide the table does not list, so unlisted nuclides are limited rather than unregulated. Part 2 paragraph 7 places a substance outside the regulation when none of its radionuclides has a half-life exceeding 100 seconds, which is a test on the whole material. These values are a separate derivation from the exemption values of EU directive 2013/59/Euratom Annex VII, based on a 10 microsievert per year dose criterion via Euratom RP 122 part 1, and are generally ten times stricter, so they are not expected to match EU_BSS_clearance or UK_IRR17_notification."
   },
   {
@@ -848,7 +848,7 @@
    "threshold": 1.0,
    "source": "Environmental Permitting (England and Wales) Regulations 2016, Schedule 23, Part 3 Table 1",
    "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "Applies to naturally occurring radionuclides in a NORM industrial activity, not to artificial ones. Entries keyed with a _sec suffix are the whole decay chain in secular equilibrium; the plain key is the value covering only the daughters listed in Table 3."
   },
   {
@@ -1159,105 +1159,32 @@
     "U240": 10.0
    },
    "secular_equilibrium": {
-    "Fe52": [
-     "Mn52_m1"
-    ],
-    "Zn69_m1": [
-     "Zn69"
-    ],
     "Sr90": [
      "Y90"
     ],
-    "Sr91": [
-     "Y91_m1"
+    "Zr93": [
+     "Nb93_m1"
     ],
     "Zr95": [
-     "Nb95_m1"
+     "Nb95"
     ],
     "Zr97": [
-     "Nb97_m1",
      "Nb97"
-    ],
-    "Nb97": [
-     "Nb97_m1"
-    ],
-    "Mo99": [
-     "Tc99_m1"
-    ],
-    "Mo101": [
-     "Tc101"
-    ],
-    "Ru103": [
-     "Rh103_m1"
-    ],
-    "Ru105": [
-     "Rh105_m1"
     ],
     "Ru106": [
      "Rh106"
     ],
-    "Pd103": [
-     "Rh103_m1"
-    ],
-    "Pd109": [
-     "Ag109_m1"
-    ],
     "Ag108_m1": [
      "Ag108"
-    ],
-    "Ag110_m1": [
-     "Ag110"
-    ],
-    "Cd109": [
-     "Ag109_m1"
-    ],
-    "Cd115": [
-     "In115_m1"
-    ],
-    "Cd115_m1": [
-     "In115_m1"
-    ],
-    "In114_m1": [
-     "In114"
-    ],
-    "Sn113": [
-     "In113_m1"
-    ],
-    "Sb125": [
-     "Te125_m1"
-    ],
-    "Te127_m1": [
-     "Te127"
-    ],
-    "Te129_m1": [
-     "Te129"
-    ],
-    "Te131_m1": [
-     "Te131"
-    ],
-    "Te132": [
-     "I132"
-    ],
-    "Te133": [
-     "I133",
-     "Xe133_m1",
-     "Xe133"
-    ],
-    "Te133_m1": [
-     "Te133",
-     "I133",
-     "Xe133_m1",
-     "Xe133"
-    ],
-    "I131": [
-     "Xe131_m1"
     ],
     "Cs137": [
      "Ba137_m1"
     ],
+    "Ba140": [
+     "La140"
+    ],
     "Ce144": [
-     "Pr144",
-     "Pr144_m1"
+     "Pr144"
     ],
     "Pb210": [
      "Bi210",
@@ -1265,10 +1192,21 @@
     ],
     "Pb212": [
      "Bi212",
-     "Tl208"
+     "Tl208",
+     "Po212"
     ],
     "Bi212": [
-     "Tl208"
+     "Tl208",
+     "Po212"
+    ],
+    "Rn220": [
+     "Po216"
+    ],
+    "Rn222": [
+     "Po218",
+     "Pb214",
+     "Bi214",
+     "Po214"
     ],
     "Ra223": [
      "Rn219",
@@ -1278,32 +1216,23 @@
      "Tl207"
     ],
     "Ra224": [
-     "Rn220",
      "Po216",
      "Pb212",
      "Bi212",
-     "Tl208"
+     "Tl208",
+     "Po212"
     ],
     "Ra226": [
-     "Rn222",
      "Po218",
      "Pb214",
      "Bi214",
+     "Pb210",
+     "Bi210",
+     "Po210",
      "Po214"
     ],
     "Ra228": [
      "Ac228"
-    ],
-    "Ac227": [
-     "Th227",
-     "Fr223",
-     "Ra223",
-     "Rn219",
-     "Po215",
-     "Pb211",
-     "Bi211",
-     "Tl207",
-     "Po211"
     ],
     "Th226": [
      "Ra222",
@@ -1316,6 +1245,7 @@
      "Po216",
      "Pb212",
      "Bi212",
+     "Po212",
      "Tl208"
     ],
     "Th229": [
@@ -1324,7 +1254,7 @@
      "Fr221",
      "At217",
      "Bi213",
-     "Tl209",
+     "Po213",
      "Pb209"
     ],
     "Th232": [
@@ -1336,12 +1266,11 @@
      "Po216",
      "Pb212",
      "Bi212",
-     "Tl208",
-     "Po212"
+     "Po212",
+     "Tl208"
     ],
     "Th234": [
-     "Pa234_m1",
-     "Pa234"
+     "Pa234_m1"
     ],
     "U230": [
      "Th226",
@@ -1356,21 +1285,11 @@
      "Po216",
      "Pb212",
      "Bi212",
-     "Tl208"
+     "Tl208",
+     "Po212"
     ],
     "U235": [
-     "Th231",
-     "Pa231",
-     "Ac227",
-     "Th227",
-     "Fr223",
-     "Ra223",
-     "Rn219",
-     "Po215",
-     "Pb211",
-     "Bi211",
-     "Tl207",
-     "Po211"
+     "Th231"
     ],
     "U238": [
      "Th234",
@@ -1383,47 +1302,29 @@
      "Po218",
      "Pb214",
      "Bi214",
-     "Po214",
      "Pb210",
      "Bi210",
-     "Po210"
+     "Po210",
+     "Po214"
     ],
     "U240": [
-     "Np240_m1",
      "Np240"
     ],
     "Np237": [
      "Pa233"
     ],
-    "Pu244": [
-     "U240",
-     "Np240_m1",
-     "Np240"
-    ],
     "Am242_m1": [
-     "Np238"
+     "Am242"
     ],
     "Am243": [
      "Np239"
-    ],
-    "Cm247": [
-     "Pu243"
-    ],
-    "Cf253": [
-     "Cm249"
-    ],
-    "Es254": [
-     "Bk250"
-    ],
-    "Es254_m1": [
-     "Fm254"
     ]
    },
    "threshold": 1.0,
    "source": "Environmental Permitting (England and Wales) Regulations 2016, Schedule 23, Part 6 Table 5",
    "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
-   "retrieved": "2026-09-09",
-   "notes": "Exemption from the need for a permit to keep and use radioactive material. The regulation pairs this concentration with a maximum total activity on the premises, which is a quantity limit rather than a concentration and is not part of this index."
+   "retrieved": "2026-09-10",
+   "notes": "Exemption from the need for a permit to keep and use radioactive material. The regulation pairs this concentration with a maximum total activity on the premises, which is a quantity limit rather than a concentration and is not part of this index. The secular equilibrium daughters come from Part 6 Table 8, which paragraph 29 designates for this Part, and not from the Part 3 Table 3 used by the out of scope sets."
   }
  ]
 }

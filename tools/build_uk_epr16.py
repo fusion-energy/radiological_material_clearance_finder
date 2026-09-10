@@ -86,7 +86,8 @@ def parse_limits(table_body: str, column: int, label: str) -> tuple[dict, dict]:
             continue
         if limits[key] == value:
             continue
-        # Prefer the "+" row over the plain one, whichever order they appear in.
+        # Keep the plain row's value as the limit and the "+" row's value as the
+        # secular equilibrium alternative, whichever order the two rows appear in.
         if marker == "+" and markers[key] is None:
             alternatives[key] = value
         elif markers[key] == "+" and marker is None:
@@ -251,7 +252,21 @@ def main() -> None:
     ]
 
     if "Table 5" in tables:
+        # Part 6 paragraph 29 sends the "+" and "sec" markers in Table 5 to
+        # Table 8, not to the Part 3 Table 3 used above. The two tables really do
+        # differ: Table 3 has 57 parents and Table 8 has 31, and sixteen parents
+        # they share carry different daughters. Table 3 gives U-235 twelve
+        # daughters where Table 8 gives it only Th-231, so using the wrong one
+        # deletes activity from the sum that nothing accounts for.
+        if "Table 8" not in tables:
+            raise SystemExit(
+                "Table 5 is present but Table 8 is not, so the Part 6 secular "
+                "equilibrium map cannot be built. The source layout has changed."
+            )
         _, table5 = tables["Table 5"]
+        _, table8 = tables["Table 8"]
+        part6_daughters = parse_daughters(table8)
+        check_markers_have_daughters(table5, part6_daughters, "Table 5")
         material_conc, material_alt = parse_limits(table5, 2, "EPR16 Table 5 concentration")
         if material_conc:
             sets.append(
@@ -262,7 +277,7 @@ def main() -> None:
                     "units": "Bq/g",
                     "limits": material_conc,
                     "limits_secular_equilibrium": material_alt,
-                    "secular_equilibrium": {k: v for k, v in daughters.items()},
+                    "secular_equilibrium": part6_daughters,
                     "threshold": 1.0,
                     "source": f"{CITATION}, Part 6 Table 5",
                     "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
@@ -272,7 +287,9 @@ def main() -> None:
                         "radioactive material. The regulation pairs this concentration "
                         "with a maximum total activity on the premises, which is a "
                         "quantity limit rather than a concentration and is not part of "
-                        "this index."
+                        "this index. The secular equilibrium daughters come from "
+                        "Part 6 Table 8, which paragraph 29 designates for this Part, "
+                        "and not from the Part 3 Table 3 used by the out of scope sets."
                     ),
                 }
             )

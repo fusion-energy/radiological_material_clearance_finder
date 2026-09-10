@@ -79,9 +79,8 @@ def parse_table2(text: str) -> tuple[dict[str, float], dict[str, float], list[st
             if name not in unlimited:
                 unlimited.append(name)
             continue
-        parts = [p.strip() for p in value.split("-") if p.strip()]
-        # "6.E+02" or "6.E+02 - 6.E+03"; the exponent sign is inside the token,
-        # so splitting on "-" is safe only after E+/E- have been consumed.
+        # "6.E+02" or "6.E+02 - 6.E+03". The exponent sign is inside the token,
+        # so splitting on "-" would break "2.E-01". Match whole numbers instead.
         parts = re.findall(_NUMBER, value)
         numbers = [float(p.replace(".E", "E")) for p in parts]
         lower[name] = numbers[0]
@@ -124,7 +123,13 @@ def main() -> None:
 
     entry["limits_upper"] = {k: upper[k] for k in sorted(upper)}
     entry["unlimited"] = sorted(unlimited)
-    entry["notes"] += (
+    # Assignment rather than accumulation, so re-running the tool does not append
+    # the sentence a second time.
+    marker = " The paper gives "
+    base = entry["notes"]
+    if marker in base:
+        base = base[: base.index(marker)]
+    entry["notes"] = base + (
         f" The paper gives {len(upper)} of these limits as a range, whose upper "
         f"bound is in limits_upper, and marks {len(unlimited)} nuclides TMSA "
         f"(theoretical maximum specific activity), meaning no limit applies. Those "

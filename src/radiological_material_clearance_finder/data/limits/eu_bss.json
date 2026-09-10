@@ -264,7 +264,41 @@
     "Es254": 0.1,
     "Es254_m1": 10.0,
     "Fm254": 10000.0,
-    "Fm255": 100.0
+    "Fm255": 100.0,
+    "K40": 10.0,
+    "At218": 1.0,
+    "Bi210": 1.0,
+    "Bi210_m1": 1.0,
+    "Bi214": 1.0,
+    "Pa234": 1.0,
+    "Pa234_m1": 1.0,
+    "Pb210": 1.0,
+    "Pb214": 1.0,
+    "Po210": 1.0,
+    "Po214": 1.0,
+    "Po218": 1.0,
+    "Ra226": 1.0,
+    "Rn218": 1.0,
+    "Rn222": 1.0,
+    "Th230": 1.0,
+    "Th234": 1.0,
+    "Tl210": 1.0,
+    "U234": 1.0,
+    "U238": 1.0,
+    "Ac228": 1.0,
+    "Bi212": 1.0,
+    "Bi212_m1": 1.0,
+    "Bi212_m2": 1.0,
+    "Pb212": 1.0,
+    "Po212": 1.0,
+    "Po212_m1": 1.0,
+    "Po216": 1.0,
+    "Ra224": 1.0,
+    "Ra228": 1.0,
+    "Rn220": 1.0,
+    "Th228": 1.0,
+    "Th232": 1.0,
+    "Tl208": 1.0
    },
    "secular_equilibrium": {
     "Fe52": [
@@ -390,8 +424,8 @@
    "threshold": 1.0,
    "source": "Council Directive 2013/59/Euratom, Annex VII Table A Part 1",
    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02013L0059-20140117",
-   "retrieved": "2026-09-09",
-   "notes": "Values are given in the directive as kBq/kg, which is numerically identical to Bq/g, and are the same values as IAEA GSR Part 3 (2014) Schedule I Table I.2, verified identical for all 257 nuclides in common. UK IRR 2017 Schedule 7 Part 1 transcribes them and agrees for 255 of the 257, differing only for Na-24 (0.1 against 1) and Pt-197 (10 against 1000). UK EPR 2016 Schedule 23 Table 2 is a separate derivation from a 10 microsievert per year dose criterion via Euratom RP 122, is generally ten times stricter, and is not expected to match. IAEA RS-G-1.7, which carried an earlier form of these values, has been superseded by GSG-17 and GSG-18."
+   "retrieved": "2026-09-10",
+   "notes": "Values are given in the directive as kBq/kg, which is numerically identical to Bq/g, and are the same values as IAEA GSR Part 3 (2014) Schedule I Table I.2, verified identical for all 257 nuclides in common. UK IRR 2017 Schedule 7 Part 1 transcribes them and agrees for 255 of the 257, differing only for Na-24 (0.1 against 1) and Pt-197 (10 against 1000). UK EPR 2016 Schedule 23 Table 2 is a separate derivation from a 10 microsievert per year dose criterion via Euratom RP 122, is generally ten times stricter, and is not expected to match. IAEA RS-G-1.7, which carried an earlier form of these values, has been superseded by GSG-17 and GSG-18. Table A Part 2 gives one value for a whole natural series rather than per nuclide, so the U-238 and Th-232 series values of 1 Bq/g are expanded across their members, walked from the IAEA decay mode table. Where a nuclide also has an explicit Part 1 row, that row wins. Potassium-40 is listed on its own at 10 Bq/g."
   }
  ]
 }

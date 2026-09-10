@@ -83,8 +83,9 @@ PATHWAY_NOTE = (
     "the mass of any one item. A lower annual throughput permits a higher "
     "specific activity, because the collective dose it can produce is smaller. "
     "Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq "
-    "and two surface contamination columns in Bq/cm2, which this package does "
-    "not model because it works from a bulk inventory rather than a surface."
+    "(Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and "
+    "Spalten 12 and 13 for building surfaces), which this package does not model "
+    "because it works from a bulk inventory rather than a surface."
 )
 
 
@@ -263,6 +264,16 @@ def main() -> None:
     sets = []
     for name, (spalte, label, german) in PATHWAYS.items():
         limits, alternatives = parse_limits(main_table, spalte, name)
+        # An empty or nearly empty column means the Spalte mapping has drifted,
+        # which would ship a limit set that gives every material an index of
+        # zero and so reports it clearable. The smallest real column, Spalte 7
+        # for soil surfaces, holds 113 rows.
+        if len(limits) < 100:
+            raise SystemExit(
+                f"{name}: only {len(limits)} limits parsed from Spalte {spalte}, "
+                f"which is far short of the smallest real column. The column "
+                f"mapping no longer matches the published table."
+            )
         built[name] = limits
         sets.append(
             {

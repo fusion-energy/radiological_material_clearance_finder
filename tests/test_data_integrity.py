@@ -100,7 +100,9 @@ def test_table_sizes_are_what_the_sources_hold():
         "StrlSchV_unrestricted": 763,
         "StrlSchV_metal_recycling": 283,
         "StrlSchV_soil": 113,
-        "EU_BSS_clearance": 257,
+        # 257 artificial nuclides from Table A Part 1, plus 34 from expanding the
+        # whole-series values of Table A Part 2 across their members.
+        "EU_BSS_clearance": 291,
         "IAEA_GSR3_clearance": 257,
         "Fetter": 81,
     }
@@ -121,17 +123,75 @@ def test_iaea_and_eu_agree_everywhere_they_overlap():
 
 
 def test_uk_irr17_matches_the_eu_directive_it_transcribes():
-    """IRR 2017 Schedule 7 carries the EU BSS Annex VII values.
+    """IRR 2017 Schedule 7 Part 1 carries the EU BSS Annex VII Table A Part 1 values.
 
-    Two nuclides genuinely differ in the published UK text, and pinning them
-    here means a future change to either table shows up as a test failure
-    rather than as a silent drift.
+    The comparison is restricted to the artificial nuclides, taken as the set
+    IAEA Table I.2 covers. Outside that, EU Table A Part 2 gives whole natural
+    series a flat 1 Bq/g for material in secular equilibrium with its progeny,
+    while IRR 2017 Part 1 covers natural nuclides only where they have been
+    processed for their radioactive properties, and gives those their own
+    values. Comparing the two across the natural chains would be comparing
+    different regulatory situations.
+
+    Three nuclides differ, and pinning them here means a change to either table
+    shows up as a failure rather than as silent drift. Na-24 and Pt-197 differ
+    in the published UK text. U-240 differs because the two regulations publish
+    different things: the directive gives only the secular equilibrium value
+    while IRR 2017 gives both that and the value for the nuclide alone, and the
+    two agree once compared like for like, which the next assertion checks.
     """
-    uk = get_limit_set("UK_IRR17_notification").limits
+    artificial = set(get_limit_set("IAEA_GSR3_clearance").limits)
+    uk_set = get_limit_set("UK_IRR17_notification")
+    uk = uk_set.limits
     european = get_limit_set("EU_BSS_clearance").limits
-    shared = set(uk) & set(european)
+    shared = (set(uk) & set(european)) & artificial
     differing = {n for n in shared if uk[n] != european[n]}
-    assert differing == {"Na24", "Pt197"}
+    assert differing == {"Na24", "Pt197", "U240"}
+    # Like for like: the directive's U-240 row is the marked one.
+    assert uk_set.limits_secular_equilibrium["U240"] == european["U240"]
+
+
+def test_the_eu_natural_series_expansion_covers_the_chains():
+    """A whole-series value has to reach the members or it reaches nothing.
+
+    Table A Part 2 gives one value for the U-238 and Th-232 series, so without
+    expansion a material of natural uranium matches nothing in this set and
+    scores zero, which reads as clearable.
+    """
+    limits = get_limit_set("EU_BSS_clearance").limits
+    for name in ("U238", "U234", "Th230", "Ra226", "Rn222", "Pb210", "Po210"):
+        assert limits[name] == 1.0, f"{name} is missing from the U-238 series"
+    for name in ("Th232", "Ra228", "Th228", "Ra224", "Rn220", "Pb212", "Tl208"):
+        assert limits[name] == 1.0, f"{name} is missing from the Th-232 series"
+    assert limits["K40"] == 10.0
+    # Pa-234m is the branch Th-234 actually decays through, so the expansion has
+    # to include isomers and not only ground states.
+    assert limits["Pa234_m1"] == 1.0
+
+
+def test_epr16_part6_uses_its_own_secular_equilibrium_table():
+    """Schedule 23 paragraph 29 sends Part 6 markers to Table 8, not Table 3.
+
+    The two tables really do differ: Table 3 gives U-235 twelve daughters where
+    Table 8 gives it only Th-231, so attaching the wrong one deletes activity
+    from the sum that nothing accounts for.
+    """
+    part3 = get_limit_set("UK_EPR16_out_of_scope").secular_equilibrium
+    part6 = get_limit_set("UK_EPR16_exempt_material").secular_equilibrium
+    assert part3 != part6
+    assert part6["U235"] == ("Th231",)
+    assert len(part3["U235"]) > 1
+
+
+def test_irr17_keeps_the_plain_and_marked_u240_limits_apart():
+    """The notification column gives U-240 0.01 Bq/g plain and 100 Bq/g marked.
+
+    Letting the marked row overwrite the plain one made the limit ten thousand
+    times too lenient for U-240 on its own.
+    """
+    limit_set = get_limit_set("UK_IRR17_notification")
+    assert limit_set.limits["U240"] == 0.01
+    assert limit_set.limits_secular_equilibrium["U240"] == 100.0
 
 
 def test_uk_epr16_has_its_catch_all_and_scope_rule():
@@ -160,3 +220,36 @@ def test_progeny_lists_differ_between_regulations():
     irr = get_limit_set("UK_IRR17_notification").secular_equilibrium
     assert epr["Zr95"] == ("Nb95_m1",)
     assert irr["Zr95"] == ("Nb95",)
+
+
+def test_the_iaea_set_carries_its_own_progeny_table():
+    """It is printed alongside Table I.2, so leaving it out double counted daughters.
+
+    The footnote is set as two column pairs on shared lines, and U-232's chain
+    wraps across three of them, so this pins the wrapped case specifically.
+    """
+    progeny = get_limit_set("IAEA_GSR3_clearance").secular_equilibrium
+    assert progeny
+    assert progeny["U232"] == (
+        "Th228", "Ra224", "Rn220", "Po216", "Pb212", "Bi212", "Tl208",
+    )
+    assert progeny["Cs137"] == ("Ba137_m1",)
+    assert progeny["Zr97"] == ("Nb97_m1", "Nb97")
+
+
+def test_alpha_fractions_do_not_exceed_the_measured_branches():
+    """An unmeasured alpha branch takes what is left, not a flat 100 percent.
+
+    Giving it everything made nuclides that are almost entirely beta emitters
+    look like pure alpha emitters, which puts their activity in the wrong half
+    of the UK alpha and beta or gamma split.
+    """
+    data = decay.default_decay_data()
+    # Bi-212 is 35.94 percent alpha and the rest beta, both measured.
+    assert data.alpha_fraction("Bi212") == pytest.approx(0.3594, abs=1e-4)
+    # A pure beta emitter must stay at zero however its branches are recorded.
+    for name in ("Sr90", "Cs137", "Co60", "H3", "Ni63"):
+        assert data.alpha_fraction(name) == 0.0, name
+    # And a pure alpha emitter stays at one.
+    for name in ("Am241", "Pu239", "Po210", "Ra226"):
+        assert data.alpha_fraction(name) == pytest.approx(1.0), name

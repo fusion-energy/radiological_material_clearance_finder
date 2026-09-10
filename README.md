@@ -174,7 +174,7 @@ python tools/build_iaea.py           # IAEA PDF, needs pdftotext
 python tools/build_us.py             # extracted from OpenMC's waste.py
 python tools/build_decay_data.py     # AME2020 and ENDF/B-VIII.0
 python tools/build_decay_modes.py    # IAEA Livechart
-python tools/verify_tables.py        # re-download everything and diff
+python tools/verify_tables.py        # re-download the downloadable sources and diff
 ```
 
 Each source writes its numbers differently and none of them fail loudly when

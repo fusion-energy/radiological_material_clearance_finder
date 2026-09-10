@@ -30,10 +30,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from _series import series_members  # noqa: E402
 from _tables import check_regulatory, clean, parse_value  # noqa: E402
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 URL = "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02013L0059-20140117"
+LIVECHART_URL = "https://nds.iaea.org/relnsd/v1/data?fields=ground_states&nuclides=all"
+
+#: Table A Part 2 heads, with the value the directive gives each in kBq/kg,
+#: which is numerically Bq/g.
+NATURAL_SERIES = {"U238": 1.0, "Th232": 1.0}
+#: Table A Part 2 also lists potassium-40 on its own rather than as a series.
+POTASSIUM_40 = 10.0
 DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data" / "limits"
 
 _TABLE = re.compile(r"<table[^>]*>.*?</table>", re.S)
@@ -50,6 +58,70 @@ def fetch(url: str) -> str:
 def table_rows(block: str) -> list[list[str]]:
     """Return the cleaned cells of each row in an HTML table block."""
     return [[clean(cell) for cell in _CELL.findall(row)] for row in _ROW.findall(block)]
+
+
+def parse_table_a_part2(document: str, livechart: str) -> dict[str, float]:
+    """Expand Annex VII Table A Part 2 into a per-nuclide limit.
+
+    Part 2 gives one value for a whole natural series, "for naturally occurring
+    radionuclides in solid materials in secular equilibrium with their progeny",
+    so the value applies to each member rather than only to the series head.
+    Without expanding it a material of natural uranium matches nothing in this
+    set and scores an index of zero, which reads as clearable.
+
+    The membership is walked from the IAEA decay mode table rather than written
+    out here, so it is derived from published data and regenerates with it.
+    """
+    # Anchored to the Part 2 table itself. Searching the whole document instead
+    # picks up the K-40 row of Table B, which is a total activity in Bq and uses
+    # a different notation entirely.
+    part2 = None
+    for block in _TABLE.findall(document):
+        candidate = table_rows(block)
+        first_cells = [c[0].lower() for c in candidate if c]
+        if any("series" in c for c in first_cells) and any(
+            c.startswith("k-40") for c in first_cells
+        ):
+            part2 = candidate
+            break
+    if part2 is None:
+        raise SystemExit("Annex VII Table A Part 2 not found in the source document")
+
+    published = {}
+    for cells in part2:
+        if len(cells) < 2:
+            continue
+        label = cells[0].lower()
+        for head in NATURAL_SERIES:
+            symbol, mass, _ = nuc.parse(head)
+            if f"{symbol.lower()}-{mass} series" in label and "natural" in label:
+                value = parse_value(cells[1].split("kBq")[0], decimal_comma=True)
+                if value is not None:
+                    published[head] = value
+        if label.startswith("k-40"):
+            value = parse_value(cells[1].split("kBq")[0], decimal_comma=True)
+            if value is not None:
+                published["K40"] = value
+
+    for head, expected in list(NATURAL_SERIES.items()) + [("K40", POTASSIUM_40)]:
+        if published.get(head) != expected:
+            raise SystemExit(
+                f"Table A Part 2 gives {head} as {published.get(head)!r}, but this "
+                f"script was written against {expected}. Check the source before "
+                f"changing the expected value."
+            )
+
+    limits = {"K40": published["K40"]}
+    for head, value in NATURAL_SERIES.items():
+        members = series_members(livechart, head)
+        if len(members) < 8:
+            raise SystemExit(
+                f"only {len(members)} members derived for the {head} series, which "
+                f"is too few for a natural decay chain"
+            )
+        for member in members:
+            limits[member] = value
+    return limits
 
 
 def find_table_a_part1(document: str) -> list[list[str]]:
@@ -130,11 +202,29 @@ NOTES = (
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cached", type=Path)
+    parser.add_argument(
+        "--livechart", type=Path, help="local IAEA Livechart CSV, else downloaded"
+    )
     args = parser.parse_args()
 
     document = args.cached.read_text(encoding="utf-8", errors="replace") if args.cached else fetch(URL)
+    livechart = (
+        args.livechart.read_text(errors="replace")
+        if args.livechart
+        else fetch(LIVECHART_URL)
+    )
     rows = find_table_a_part1(document)
     limits, progeny = split_limits_and_progeny(rows)
+
+    # Part 1 values win where a nuclide appears in both, since an explicit row
+    # is more specific than a whole-series value.
+    natural = parse_table_a_part2(document, livechart)
+    added = sorted(set(natural) - set(limits))
+    for name, value in natural.items():
+        limits.setdefault(name, value)
+    for required in ("U238", "Th232", "Ra226", "Pb210", "Po210", "K40"):
+        if required not in limits:
+            raise SystemExit(f"{required} is missing after expanding Table A Part 2")
 
     if len(limits) < 250:
         raise SystemExit(
@@ -154,12 +244,19 @@ def main() -> None:
             "source": "Council Directive 2013/59/Euratom, Annex VII Table A Part 1",
             "url": URL,
             "retrieved": date.today().isoformat(),
-            "notes": NOTES,
+            "notes": NOTES + (
+                " Table A Part 2 gives one value for a whole natural series rather "
+                "than per nuclide, so the U-238 and Th-232 series values of 1 Bq/g "
+                "are expanded across their members, walked from the IAEA decay mode "
+                "table. Where a nuclide also has an explicit Part 1 row, that row "
+                "wins. Potassium-40 is listed on its own at 10 Bq/g."
+            ),
         }
     ]
     payload = {"_generated_by": "tools/build_eu_bss.py", "_url": URL, "sets": sets}
     (DATA / "eu_bss.json").write_text(json.dumps(payload, indent=1) + "\n")
     print(f"EU_BSS_clearance  {len(limits)} limits, {len(progeny)} progeny parents")
+    print(f"  Table A Part 2 added {len(added)} natural nuclides: {added}")
     print(f"wrote {DATA / 'eu_bss.json'}")
 
 

@@ -70,16 +70,27 @@ def read_name(cell: str) -> tuple[str, str | None, str | None]:
     return key, marker, qualifier
 
 
-def parse_limits(table: list[list[str]], column: int, label: str) -> tuple[dict, dict]:
+def parse_limits(table: list[list[str]], column: int, label: str) -> tuple[dict, dict, dict]:
     """Read one numeric column, preferring unqualified rows over qualified ones.
 
+    A nuclide listed both plain and marked "+" gets two different values, and
+    they are kept apart rather than one overwriting the other. U-240 is the case
+    that bites: the notification column gives 0.01 Bq/g plain and 100 Bq/g
+    marked, so letting the marked row win makes the limit ten thousand times too
+    lenient for U-240 on its own. Per the regulation's own note the marked value
+    applies only when the progeny are there, which is what
+    ``limits_secular_equilibrium`` expresses.
+
     Returns:
-        ``(limits, qualifiers)`` where qualifiers records the chemical form for
-        any nuclide whose only row carried one.
+        ``(limits, qualifiers, equilibrium)``, where qualifiers records the
+        chemical form for any nuclide whose only row carried one, and
+        equilibrium holds the marked value for a nuclide that also has a plain
+        row.
     """
     limits: dict[str, float] = {}
     qualifiers: dict[str, str] = {}
     markers: dict[str, str | None] = {}
+    equilibrium: dict[str, float] = {}
 
     for cells in table:
         if not cells or len(cells) <= column:
@@ -101,10 +112,21 @@ def parse_limits(table: list[list[str]], column: int, label: str) -> tuple[dict,
         if qualifier is None and key in qualifiers:
             limits[key], markers[key] = value, marker
             qualifiers.pop(key)
-        elif qualifier is None and limits[key] != value and marker == "+" and markers[key] is None:
+            continue
+        if qualifier is not None or limits[key] == value:
+            continue
+        if marker == "+" and markers[key] is None:
+            equilibrium[key] = value
+        elif markers[key] == "+" and marker is None:
+            equilibrium[key] = limits[key]
             limits[key], markers[key] = value, marker
+        else:
+            raise ValueError(
+                f"{label}: {key} appears twice with values {limits[key]} and "
+                f"{value}, markers {markers[key]!r} and {marker!r}"
+            )
     check_regulatory(limits, label)
-    return limits, qualifiers
+    return limits, qualifiers, equilibrium
 
 
 def parse_progeny(table: list[list[str]]) -> dict[str, list[str]]:
@@ -199,9 +221,13 @@ def main() -> None:
     check_markers_have_progeny(part1, progeny1, "IRR17 Part 1")
     check_markers_have_progeny(part2, progeny2, "IRR17 Part 2")
 
-    notification, qualifiers = parse_limits(part1, 1, "IRR17 Part 1 notification")
-    registration, _ = parse_limits(part1, 3, "IRR17 Part 1 registration")
-    natural, _ = parse_limits(part2, 1, "IRR17 Part 2 natural")
+    notification, qualifiers, notification_eq = parse_limits(
+        part1, 1, "IRR17 Part 1 notification"
+    )
+    registration, _, registration_eq = parse_limits(
+        part1, 3, "IRR17 Part 1 registration"
+    )
+    natural, _, natural_eq = parse_limits(part2, 1, "IRR17 Part 2 natural")
 
     catch_all_notification = find_catch_all(part1, 1)
     catch_all_registration = find_catch_all(part1, 3)
@@ -226,6 +252,7 @@ def main() -> None:
             "name": "UK_IRR17_notification",
             "label": "UK exemption from notification, artificial radionuclides",
             "limits": notification,
+            "limits_secular_equilibrium": notification_eq,
             "default_limit": catch_all_notification,
             "secular_equilibrium": progeny1,
             "source": f"{CITATION}, Part 1 column 2",
@@ -243,6 +270,7 @@ def main() -> None:
             "name": "UK_IRR17_registration",
             "label": "UK exemption from registration, amounts up to 1000 kg",
             "limits": registration,
+            "limits_secular_equilibrium": registration_eq,
             "default_limit": catch_all_registration,
             "secular_equilibrium": progeny1,
             "source": f"{CITATION}, Part 1 column 4",
@@ -256,6 +284,7 @@ def main() -> None:
             "name": "UK_IRR17_natural",
             "label": "UK exemption from notification, unprocessed natural radionuclides",
             "limits": natural,
+            "limits_secular_equilibrium": natural_eq,
             "secular_equilibrium": progeny2,
             "source": f"{CITATION}, Part 2 column 2",
             "notes": (

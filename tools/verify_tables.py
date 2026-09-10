@@ -22,6 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "src" / "radiological_material_clearance_finder" / "data"
 LIMITS = DATA / "limits"
 
+#: Tables regenerated from a downloadable source. us.json is not among them: it
+#: is extracted from OpenMC's source rather than downloaded, and the frozen copy
+#: in tests/data is what tests/test_agreement_tables.py checks it against.
 BUILDERS = [
     ("uk_epr16.json", "build_uk_epr16.py"),
     ("uk_irr17.json", "build_uk_irr17.py"),
@@ -103,6 +106,10 @@ def main() -> int:
             shutil.rmtree(LIMITS)
             shutil.copytree(backup, LIMITS)
 
+    shipped = sorted(path.name for path in LIMITS.glob("*.json"))
+    checked = sorted(name for name, _ in BUILDERS)
+    skipped = sorted(set(shipped) - set(checked))
+
     if problems:
         print(f"\n{len(problems)} difference(s) between the sources and the shipped tables:")
         for problem in problems:
@@ -110,7 +117,13 @@ def main() -> int:
         print("\nThe shipped tables have been restored. Re-run the build scripts to adopt "
               "the change once it has been reviewed.")
         return 1
-    print("\nEvery table matches its official source.")
+    print(f"\n{len(checked)} of {len(shipped)} tables match their official source.")
+    if skipped:
+        print(
+            f"Not re-downloaded: {', '.join(skipped)}. These have no downloadable "
+            f"source, and tests/test_agreement_tables.py checks them against the "
+            f"frozen copies in tests/data instead."
+        )
     return 0
 
 

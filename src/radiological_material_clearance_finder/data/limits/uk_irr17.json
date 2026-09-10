@@ -266,7 +266,7 @@
     "U237": 100.0,
     "U238": 1.0,
     "U239": 100.0,
-    "U240": 100.0,
+    "U240": 0.01,
     "Np237": 1.0,
     "Np239": 100.0,
     "Np240": 10.0,
@@ -306,6 +306,9 @@
     "Es254_m1": 10.0,
     "Fm254": 10000.0,
     "Fm255": 100.0
+   },
+   "limits_secular_equilibrium": {
+    "U240": 100.0
    },
    "default_limit": 0.01,
    "secular_equilibrium": {
@@ -537,7 +540,7 @@
    "jurisdiction": "UK",
    "units": "Bq/g",
    "url": "https://www.legislation.gov.uk/uksi/2017/1075/schedule/7",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "threshold": 1.0
   },
   {
@@ -804,7 +807,7 @@
     "U237": 100.0,
     "U238": 10.0,
     "U239": 100.0,
-    "U240": 10.0,
+    "U240": 1000.0,
     "Np237": 1.0,
     "Np239": 100.0,
     "Np240": 10.0,
@@ -844,6 +847,9 @@
     "Es254_m1": 100.0,
     "Fm254": 10000.0,
     "Fm255": 1000.0
+   },
+   "limits_secular_equilibrium": {
+    "U240": 10.0
    },
    "default_limit": 0.1,
    "secular_equilibrium": {
@@ -1075,7 +1081,7 @@
    "jurisdiction": "UK",
    "units": "Bq/g",
    "url": "https://www.legislation.gov.uk/uksi/2017/1075/schedule/7",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "threshold": 1.0
   },
   {
@@ -1092,6 +1098,7 @@
     "Th232_sec": 1.0,
     "U238_sec": 1.0
    },
+   "limits_secular_equilibrium": {},
    "secular_equilibrium": {
     "Pb210": [
      "Bi210",
@@ -1125,7 +1132,7 @@
    "jurisdiction": "UK",
    "units": "Bq/g",
    "url": "https://www.legislation.gov.uk/uksi/2017/1075/schedule/7",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "threshold": 1.0
   }
  ]

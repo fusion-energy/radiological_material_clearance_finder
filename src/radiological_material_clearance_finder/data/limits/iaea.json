@@ -266,10 +266,131 @@
     "Fm255": 100.0,
     "Pu240": 0.1
    },
+   "secular_equilibrium": {
+    "Fe52": [
+     "Mn52_m1"
+    ],
+    "Sn113": [
+     "In113_m1"
+    ],
+    "Zn69_m1": [
+     "Zn69"
+    ],
+    "Sb125": [
+     "Te125_m1"
+    ],
+    "Sr90": [
+     "Y90"
+    ],
+    "Te127_m1": [
+     "Te127"
+    ],
+    "Sr91": [
+     "Y91_m1"
+    ],
+    "Te129_m1": [
+     "Te129"
+    ],
+    "Zr95": [
+     "Nb95"
+    ],
+    "Te131_m1": [
+     "Te131"
+    ],
+    "Zr97": [
+     "Nb97_m1",
+     "Nb97"
+    ],
+    "Te132": [
+     "I132"
+    ],
+    "Nb97": [
+     "Nb97_m1"
+    ],
+    "Cs137": [
+     "Ba137_m1"
+    ],
+    "Mo99": [
+     "Tc99_m1"
+    ],
+    "Ce144": [
+     "Pr144",
+     "Pr144_m1"
+    ],
+    "Mo101": [
+     "Tc101"
+    ],
+    "U232": [
+     "Th228",
+     "Ra224",
+     "Rn220",
+     "Po216",
+     "Pb212",
+     "Bi212",
+     "Tl208"
+    ],
+    "Ru103": [
+     "Rh103_m1"
+    ],
+    "Ru105": [
+     "Rh105_m1"
+    ],
+    "U240": [
+     "Np240_m1",
+     "Np240"
+    ],
+    "Ru106": [
+     "Rh106"
+    ],
+    "Np237": [
+     "Pa233"
+    ],
+    "Pd103": [
+     "Rh103_m1"
+    ],
+    "Pu244": [
+     "U240",
+     "Np240_m1",
+     "Np240"
+    ],
+    "Pd109": [
+     "Ag109_m1"
+    ],
+    "Am242_m1": [
+     "Np238"
+    ],
+    "Ag110_m1": [
+     "Ag110"
+    ],
+    "Am243": [
+     "Np239"
+    ],
+    "Cd109": [
+     "Ag109_m1"
+    ],
+    "Cm247": [
+     "Pu243"
+    ],
+    "Cd115": [
+     "In115_m1"
+    ],
+    "Es254": [
+     "Bk250"
+    ],
+    "Cd115_m1": [
+     "In115_m1"
+    ],
+    "Es254_m1": [
+     "Fm254"
+    ],
+    "In114_m1": [
+     "In114"
+    ]
+   },
    "threshold": 1.0,
    "source": "IAEA GSR Part 3 (2014), Schedule I, Table I.2",
    "url": "https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1578_web-57265295.pdf",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "Levels for exemption of bulk amounts of solid material without further consideration, and for clearance of solid material without further consideration. Extracted from the IAEA PDF, which is the only form published. IAEA RS-G-1.7 carried an earlier form of these values and has been superseded by GSG-17 and GSG-18. Verified identical to EU_BSS_clearance for all 257 nuclides in common, which is the expected result since the EU directive adopts these values."
   }
  ]

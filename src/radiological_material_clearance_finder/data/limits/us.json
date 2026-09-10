@@ -93,7 +93,7 @@
    "threshold": 1.0,
    "source": "Fetter et al. (1990)",
    "url": "https://doi.org/10.1016/0920-3796(90)90104-E",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "Table 2 of Fetter, Cheng and Mann, Long-term radioactive waste from fusion reactors: Part II, Fusion Engineering and Design 13(2) 239-246 (1990), doi:10.1016/0920-3796(90)90104-E. Specific activity limits for class C disposal of activated metal, for nuclides with half-lives between 5 y and 1e12 y. Where the paper gives a range, the conservative lower bound is used here and the upper bound is recorded in limits_upper. The paper gives 22 of these limits as a range, whose upper bound is in limits_upper, and marks 20 nuclides TMSA (theoretical maximum specific activity), meaning no limit applies. Those are listed in unlimited so they are reported as covered rather than as activity the index ignores.",
    "limits_upper": {
     "Ac227": 2000000.0,
@@ -155,7 +155,7 @@
    "threshold": 1.0,
    "source": "10 CFR 61.55",
    "url": "https://www.ecfr.gov/current/title-10/chapter-I/part-61/subpart-C/section-61.55",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "10 CFR 61.55 Tables 1 and 2, verified against the eCFR text dated 2026-09-01. Values in Ci/m3 except the transuranic entries of Table 1, which the regulation gives in nCi/g and which are held in limits_per_gram. The activated metal values are separate rows in the regulation, so metal overrides both replace limits (C-14, Ni-63) and add nuclides that have no non-metal limit at all (Ni-59, Nb-94).",
    "metal_overrides": {
     "C14": 80.0,
@@ -200,7 +200,7 @@
    "threshold": 1.0,
    "source": "10 CFR 61.55",
    "url": "https://www.ecfr.gov/current/title-10/chapter-I/part-61/subpart-C/section-61.55",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "10 CFR 61.55 Tables 1 and 2, verified against the eCFR text dated 2026-09-01. Values in Ci/m3 except the transuranic entries of Table 1, which the regulation gives in nCi/g and which are held in limits_per_gram. The activated metal values are separate rows in the regulation, so metal overrides both replace limits (C-14, Ni-63) and add nuclides that have no non-metal limit at all (Ni-59, Nb-94).",
    "metal_overrides": {
     "Ni63": 35.0
@@ -220,7 +220,7 @@
    "threshold": 1.0,
    "source": "10 CFR 61.55",
    "url": "https://www.ecfr.gov/current/title-10/chapter-I/part-61/subpart-C/section-61.55",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "10 CFR 61.55 Tables 1 and 2, verified against the eCFR text dated 2026-09-01. Values in Ci/m3 except the transuranic entries of Table 1, which the regulation gives in nCi/g and which are held in limits_per_gram. The activated metal values are separate rows in the regulation, so metal overrides both replace limits (C-14, Ni-63) and add nuclides that have no non-metal limit at all (Ni-59, Nb-94).",
    "metal_overrides": {
     "Ni63": 700.0
@@ -239,7 +239,7 @@
    "threshold": 1.0,
    "source": "10 CFR 61.55",
    "url": "https://www.ecfr.gov/current/title-10/chapter-I/part-61/subpart-C/section-61.55",
-   "retrieved": "2026-09-09",
+   "retrieved": "2026-09-10",
    "notes": "10 CFR 61.55 Tables 1 and 2, verified against the eCFR text dated 2026-09-01. Values in Ci/m3 except the transuranic entries of Table 1, which the regulation gives in nCi/g and which are held in limits_per_gram. The activated metal values are separate rows in the regulation, so metal overrides both replace limits (C-14, Ni-63) and add nuclides that have no non-metal limit at all (Ni-59, Nb-94).",
    "metal_overrides": {
     "Ni63": 7000.0

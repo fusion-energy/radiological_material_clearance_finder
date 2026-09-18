@@ -324,3 +324,107 @@ def test_limit_sets_reject_values_that_cannot_mean_anything(kwargs, match):
     base = {"name": "TOY_BAD", "label": "toy", "units": "Bq/g", "limits": {"Co60": 1.0}}
     with pytest.raises(ValueError, match=match):
         LimitSet(**{**base, **kwargs})
+
+
+def test_a_lenient_equilibrium_limit_needs_real_equilibrium():
+    """IRR 2017 gives U-240 0.01 Bq/g plain and 100 marked, so the marked row is
+    a ten thousand fold relief. Buying that with a trace of daughter twelve
+    orders of magnitude below equilibrium would be absurd, so it is withheld
+    until the daughters are actually there.
+    """
+    alone = clearance_index(
+        Material.from_specific_activities({"U240": 1.0}), "UK_IRR17_notification"
+    )
+    assert alone.index == pytest.approx(100.0)
+    assert not alone.clearable
+
+    trace = clearance_index(
+        Material.from_specific_activities({"U240": 1.0, "Np240_m1": 1e-12}),
+        "UK_IRR17_notification",
+    )
+    assert trace.index == pytest.approx(100.0), "a trace must not unlock the lenient row"
+    assert not trace.clearable
+
+    equilibrium = clearance_index(
+        Material.from_specific_activities(
+            {"U240": 1.0, "Np240_m1": 1.0, "Np240": 1.0}
+        ),
+        "UK_IRR17_notification",
+    )
+    assert equilibrium.limits_used["U240"] == 100.0
+    assert equilibrium.clearable
+
+
+def test_a_stricter_equilibrium_limit_applies_as_soon_as_daughters_appear():
+    """The conservative direction needs no equilibrium test.
+
+    StrlSchV gives Th-232 10 Bq/g plain and 0.01 marked.
+    """
+    result = clearance_index(
+        Material.from_specific_activities({"Th232": 1.0, "Ra228": 1.0}),
+        "StrlSchV_unrestricted",
+    )
+    assert result.limits_used["Th232"] == 0.01
+
+
+def test_an_unlimited_parent_cannot_account_for_its_daughters():
+    """No limit on the parent says nothing about the daughters.
+
+    Fetter marks some nuclides as having no limit at all. Crediting daughters
+    against a limit that does not exist deletes their activity outright.
+    """
+    limits = LimitSet(
+        name="TOY_UNLIM_PARENT", label="toy", units="Bq/g",
+        limits={"Ba137_m1": 1.0}, unlimited=("Cs137",),
+        secular_equilibrium={"Cs137": ("Ba137_m1",)},
+    )
+    result = clearance_index(
+        Material.from_specific_activities({"Cs137": 1e6, "Ba137_m1": 1e6}), limits
+    )
+    assert result.excluded == {}
+    assert result.index == pytest.approx(1e6)
+    assert not result.clearable
+
+
+def test_a_secular_equilibrium_cycle_does_not_delete_both_nuclides():
+    """A nuclide already accounted for cannot also account for others."""
+    limits = LimitSet(
+        name="TOY_CYCLE", label="toy", units="Bq/g",
+        limits={"Cs137": 1.0, "Ba137_m1": 1.0},
+        secular_equilibrium={"Cs137": ("Ba137_m1",), "Ba137_m1": ("Cs137",)},
+    )
+    result = clearance_index(
+        Material.from_specific_activities({"Cs137": 1e6, "Ba137_m1": 1e6}), limits
+    )
+    assert len(result.excluded) == 1, "exactly one side of the pair may be credited"
+    assert result.index == pytest.approx(1e6)
+    assert not result.clearable
+
+
+def test_a_hand_built_set_with_only_a_whole_chain_row_still_applies_it():
+    """Promotion has to happen however the set was built, not only from JSON."""
+    limits = LimitSet(name="TOY_SEC_ONLY", label="toy", units="Bq/g",
+                      limits={"U238_sec": 1.0})
+    result = clearance_index(Material.from_specific_activities({"U238": 5.0}), limits)
+    assert result.index == pytest.approx(5.0)
+    assert result.uncovered == {}
+
+
+def test_two_keys_normalising_to_one_nuclide_is_an_error():
+    """Schedule 7 publishes U-240 and U-240+ ten thousand apart.
+
+    Whichever landed last in the mapping would silently win.
+    """
+    with pytest.raises(ValueError, match="both normalise to"):
+        LimitSet(name="TOY_COLLIDE", label="toy", units="Bq/g",
+                 limits={"U240": 1000.0, "U-240": 0.1})
+    # The same value twice is not a conflict.
+    LimitSet(name="TOY_SAME", label="toy", units="Bq/g",
+             limits={"U240": 1000.0, "U-240": 1000.0})
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("nan")])
+def test_non_finite_limits_are_rejected(bad):
+    """An infinite limit divides every activity to nothing, reading as no limit."""
+    with pytest.raises(ValueError, match="positive and finite"):
+        LimitSet(name="TOY_INF", label="toy", units="Bq/g", limits={"Co60": bad})

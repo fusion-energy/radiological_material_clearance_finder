@@ -123,7 +123,12 @@ class LimitSet:
             "limits_secular_equilibrium",
         ):
             mapping = getattr(self, field_name)
-            object.__setattr__(self, field_name, _canonical_limits(mapping))
+            object.__setattr__(
+                self, field_name, _canonical_limits(mapping, f"{self.name}.{field_name}")
+            )
+        # A whole chain value has to be reachable however the set was built, not
+        # only when it arrived through the JSON loader.
+        object.__setattr__(self, "limits", _promote_sec_only_limits(self.limits))
 
         object.__setattr__(
             self, "unlimited", tuple(_nuclide.normalise(n) for n in self.unlimited)
@@ -154,11 +159,13 @@ class LimitSet:
         for field_name in ("limits", "metal_overrides", "limits_per_gram",
                            "limits_secular_equilibrium"):
             for nuclide_name, value in getattr(self, field_name).items():
-                if not value > 0.0:
+                if not value > 0.0 or value != value or value == float("inf"):
                     raise ValueError(
                         f"{self.name}: {field_name}[{nuclide_name}] is {value}, but a "
-                        f"limit must be positive. A limit of zero cannot be expressed "
-                        f"as a ratio and would be read as no limit at all."
+                        f"limit must be positive and finite. Zero cannot be expressed "
+                        f"as a ratio, and an infinite limit divides every activity to "
+                        f"nothing, so both would be read as no limit at all. A nuclide "
+                        f"the source places no limit on belongs in unlimited."
                     )
 
     def daughters_of(self, parent: str) -> tuple[str, ...]:
@@ -207,15 +214,29 @@ _REGISTRY: dict[str, LimitSet] = {}
 _LOADED = False
 
 
-def _canonical_limits(raw: Mapping[str, float]) -> dict[str, float]:
+def _canonical_limits(raw: Mapping[str, float], label: str = "limits") -> dict[str, float]:
+    """Normalise nuclide keys, refusing to let two of them collapse silently.
+
+    ``U240`` and ``U-240+`` both normalise to ``U240``, and Schedule 7 really does
+    publish both, ten thousand apart. Taking whichever happened to be last in the
+    mapping would make the set that lenient depending on nothing but dict order,
+    so a collision on different values is an error. The "+" and "sec" variants
+    belong in ``limits_secular_equilibrium`` and under a ``_sec`` key.
+    """
     out: dict[str, float] = {}
     for name, value in raw.items():
         # "sec" entries are stored under an explicit key so that the whole-chain
         # value and the tabulated-daughters value stay distinguishable.
-        if name.endswith("_sec"):
-            out[name] = float(value)
-            continue
-        out[_nuclide.normalise(name)] = float(value)
+        key = name if name.endswith("_sec") else _nuclide.normalise(name)
+        value = float(value)
+        if key in out and out[key] != value:
+            raise ValueError(
+                f"{label}: {name!r} and an earlier key both normalise to {key!r} "
+                f"but give different values, {out[key]} and {value}. Whichever "
+                f"came last would silently win. Put the secular equilibrium "
+                f"variant in limits_secular_equilibrium, or under a _sec key."
+            )
+        out[key] = value
     return out
 
 
@@ -244,7 +265,6 @@ def _promote_sec_only_limits(limits: dict[str, float]) -> dict[str, float]:
 def _from_dict(payload: Mapping) -> LimitSet:
     """Build a limit set from its JSON form. LimitSet.__post_init__ does the rest."""
     data = dict(payload)
-    data["limits"] = _promote_sec_only_limits(_canonical_limits(data.get("limits", {})))
     known = {f for f in LimitSet.__dataclass_fields__}
     return LimitSet(**{k: v for k, v in data.items() if k in known})
 

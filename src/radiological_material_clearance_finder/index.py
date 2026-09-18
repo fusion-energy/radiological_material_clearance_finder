@@ -166,6 +166,30 @@ def _effective_limits(material: Material, limit_set: LimitSet, metal: bool) -> d
     return limits
 
 
+#: How far below its parent a daughter may sit and still count as being in
+#: secular equilibrium with it. Equilibrium means equal activities, so this is
+#: generous; it exists to tolerate a decayed or freshly separated inventory, not
+#: to admit a trace.
+EQUILIBRIUM_TOLERANCE = 0.1
+
+
+def _in_equilibrium(activities: dict, parent: str, daughters: list) -> bool:
+    """Whether the daughters present are near enough equilibrium with the parent.
+
+    In secular equilibrium a daughter's activity equals its parent's. This asks
+    whether every tabulated daughter that is present is within
+    `EQUILIBRIUM_TOLERANCE` of that, which is what earns a parent the limit that
+    assumes equilibrium.
+    """
+    parent_activity = activities.get(parent, 0.0)
+    if parent_activity <= 0.0:
+        return False
+    return all(
+        activities.get(d, 0.0) >= EQUILIBRIUM_TOLERANCE * parent_activity
+        for d in daughters
+    )
+
+
 def _out_of_scope(material: Material, limit_set: LimitSet) -> bool:
     """Apply a whole-material scope test such as the UK 100 second rule.
 
@@ -238,6 +262,11 @@ def _resolve_equilibrium(
     for parent in sorted(parents):
         if parent not in present:
             continue
+        # A nuclide already accounted for by someone else cannot also account for
+        # others. Without this a mutually referencing pair excludes both of them
+        # and the whole activity disappears.
+        if parent in excluded:
+            continue
 
         # A parent can carry two published values with two different daughter
         # lists: a "+" value covering a few short lived progeny, and a much
@@ -256,9 +285,12 @@ def _resolve_equilibrium(
         else:
             daughters = plus
 
+        # An explicitly unlimited parent is NOT a parent that can account for
+        # anything. The source placing no limit on it says nothing about its
+        # daughters, and crediting them against a limit that does not exist
+        # deletes their activity outright.
         parent_limited = (
             parent in limits
-            or parent in limit_set.unlimited
             or parent in limit_set.limits_secular_equilibrium
             or parent in overrides
             or default_applies
@@ -272,7 +304,22 @@ def _resolve_equilibrium(
             overrides.pop(parent, None)
             continue
         if parent not in overrides and parent in limit_set.limits_secular_equilibrium:
-            overrides[parent] = limit_set.limits_secular_equilibrium[parent]
+            variant = limit_set.limits_secular_equilibrium[parent]
+            plain = limits.get(parent)
+            # A variant that is stricter than the plain row can be applied as
+            # soon as any tabulated daughter appears, since that is the
+            # conservative direction. A variant that is more LENIENT is a
+            # different matter: IRR 2017 gives U-240 as 0.01 Bq/g plain and 100
+            # marked, so switching on the mere presence of a daughter buys a ten
+            # thousand fold relief for a trace twelve orders of magnitude below
+            # equilibrium. The lenient value is only earned when the daughters
+            # really are in secular equilibrium, which means comparable
+            # activities, so it is withheld otherwise and the parent is held to
+            # its own row with nothing excluded.
+            if plain is None or variant <= plain or _in_equilibrium(activities, parent, found):
+                overrides[parent] = variant
+            else:
+                continue
 
         parent_activity = activities.get(parent, 0.0)
         for daughter in found:

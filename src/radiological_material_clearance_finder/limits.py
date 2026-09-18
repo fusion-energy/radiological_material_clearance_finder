@@ -174,14 +174,20 @@ class LimitSet:
 
     @property
     def covered_nuclides(self) -> frozenset[str]:
-        """Every nuclide this set names, whether limited or explicitly unlimited."""
-        return frozenset(self.limits) | frozenset(self.unlimited) | frozenset(self.limits_per_gram)
+        """Every nuclide this set names, whether limited or explicitly unlimited.
+
+        The ``_sec`` keys are whole chain variants of a nuclide already counted,
+        not nuclides of their own, so they are not included.
+        """
+        named = frozenset(self.limits) | frozenset(self.unlimited) | frozenset(self.limits_per_gram)
+        return frozenset(n for n in named if not n.endswith("_sec"))
 
     def __len__(self) -> int:
-        return len(self.limits)
+        """The number of nuclides limited, not counting whole chain variants."""
+        return sum(1 for name in self.limits if not name.endswith("_sec"))
 
     def __repr__(self) -> str:
-        return f"LimitSet({self.name!r}, {len(self.limits)} nuclides, {self.units})"
+        return f"LimitSet({self.name!r}, {len(self)} nuclides, {self.units})"
 
 
 # ----------------------------------------------------------------------
@@ -211,6 +217,9 @@ DYNAMIC_RULES: dict[str, Callable] = {
 # registry
 # ----------------------------------------------------------------------
 _REGISTRY: dict[str, LimitSet] = {}
+#: Names that came from the shipped data, so replacing one can be distinguished
+#: from a caller re-registering their own set.
+_SHIPPED: set = set()
 _LOADED = False
 
 
@@ -278,6 +287,7 @@ def _load_all() -> None:
         for entry in payload.get("sets", []):
             limit_set = _from_dict(entry)
             _REGISTRY[limit_set.name] = limit_set
+            _SHIPPED.add(limit_set.name)
     _LOADED = True
 
 
@@ -324,11 +334,11 @@ def register_limit_set(limit_set: LimitSet) -> None:
             in a result that only records the name.
     """
     _load_all()
-    if limit_set.name in _REGISTRY:
+    if limit_set.name in _SHIPPED:
         warnings.warn(
-            f"replacing the registered limit set {limit_set.name!r}, which came "
-            f"from the shipped regulatory data. Results will report that name "
-            f"while using the new table.",
+            f"replacing the limit set {limit_set.name!r}, which came from the "
+            f"shipped regulatory data. Results will report that name while using "
+            f"the new table.",
             stacklevel=2,
         )
     _REGISTRY[limit_set.name] = limit_set

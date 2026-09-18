@@ -54,6 +54,7 @@ jobs:
         run: |
           python - <<'PY'
           import glob
+          import json
           import os
           import re
           import tarfile
@@ -110,10 +111,26 @@ jobs:
                   ("wheel", in_wheel, wheel_names),
                   ("sdist", in_sdist, sdist_names),
               ):
-                  if path in names:
-                      print(f"  found in {label}: {path}")
-                  else:
+                  if path not in names:
                       problems.append(f"{label} is missing data file {path}")
+                      continue
+                  # Named is not the same as present. An empty or truncated
+                  # table would satisfy a membership test and then fail at
+                  # import, so check it parses as JSON and holds something.
+                  if label == "wheel":
+                      raw = zipfile.ZipFile(wheel).read(path)
+                  else:
+                      with tarfile.open(sdist) as tar:
+                          raw = tar.extractfile(path).read()
+                  try:
+                      payload = json.loads(raw)
+                  except ValueError:
+                      problems.append(f"{label} data file {path} is not valid JSON")
+                      continue
+                  if not payload:
+                      problems.append(f"{label} data file {path} is empty")
+                      continue
+                  print(f"  found in {label}: {path} ({len(raw)} bytes)")
 
           # The wheel is <name>-<version>-<python>-<abi>-<platform>.whl and the
           # sdist is <name>-<version>.tar.gz.
@@ -184,8 +201,12 @@ jobs:
           try:
               with urllib.request.urlopen(url, timeout=30) as response:
                   response.read()
-          except urllib.error.HTTPError as error:
-              if error.code == 404:
+          except OSError as error:
+              # A read timeout raises TimeoutError, which is an OSError but not a
+              # URLError, so catching only URLError let it abort the release.
+              # This check is a courtesy, not a gate: PyPI itself rejects a
+              # duplicate upload, so being unable to ask is not a reason to stop.
+              if isinstance(error, urllib.error.HTTPError) and error.code == 404:
                   print(f"{name} {version} is not on PyPI, good to publish")
                   sys.exit(0)
               # An unexpected status means we could not tell. Do not block the

@@ -1,5 +1,7 @@
 [build-system]
-requires = ["hatchling"]
+# Pinned so a release build is reproducible, and because the
+# license/license-files metadata form needs a recent hatchling.
+requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
 
 [project]

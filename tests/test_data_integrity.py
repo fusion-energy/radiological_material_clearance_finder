@@ -184,7 +184,7 @@ def test_epr16_part6_uses_its_own_secular_equilibrium_table():
     # down to Po-210, where Table 3 stops at Po-214.
     assert part3["Ra226"] == ("Rn222", "Po218", "Pb214", "Bi214", "Po214")
     assert part6["Ra226"] == (
-        "Po218", "Pb214", "Bi214", "Pb210", "Bi210", "Po210", "Po214",
+        "Rn222", "Po218", "Pb214", "Bi214", "Pb210", "Bi210", "Po210", "Po214",
     )
 
 
@@ -303,3 +303,55 @@ def test_the_plus_value_still_applies_without_the_wider_chain():
     assert result.limits_used["U238"] == 1.0
     assert result.index == pytest.approx(0.5)
     assert sorted(result.excluded) == ["Pa234", "Th234"]
+
+
+def test_prose_qualified_progeny_rows_keep_their_first_daughter():
+    """Two Table 8 rows prefix their list with "Where Ra-224+ is referred to...".
+
+    Splitting on commas without stripping that prefix glues it to the first
+    daughter, which then fails to parse and is dropped, losing Rn-220 and Rn-222
+    from chains where they are the dominant member.
+    """
+    part6 = get_limit_set("UK_EPR16_exempt_material").secular_equilibrium
+    assert part6["Ra224"][0] == "Rn220"
+    assert part6["Ra226"][0] == "Rn222"
+
+
+def test_every_limit_set_has_at_least_one_pinned_value():
+    """A column offset regression would otherwise pass the whole suite.
+
+    Reading the registration column one cell to the right makes every limit ten
+    times too lenient and nothing else notices, so each set pins a value read by
+    hand from the published table.
+    """
+    # Read from the published tables, not from this implementation. The German
+    # values are the Co-60 row of Anlage 4 Tabelle 1, whose cells run
+    # 1 E+5, 1 E-1, 3 E-2, 1, 9 E-2, 3 E-2, 6, 7, 2, 2, 4 E-1, 3, 6 E-1 across
+    # Spalten 2 to 14.
+    pinned = {
+        "UK_EPR16_out_of_scope": ("Co60", 0.1),
+        "UK_EPR16_norm": ("U238", 5.0),
+        "UK_EPR16_exempt_material": ("H3", 1e6),
+        "UK_IRR17_notification": ("H3", 100.0),
+        "UK_IRR17_registration": ("H3", 1e6),
+        "UK_IRR17_natural": ("K40", 10.0),
+        "StrlSchV_unrestricted": ("Co60", 0.1),
+        "StrlSchV_rubble": ("Co60", 0.09),
+        "StrlSchV_soil": ("Co60", 0.03),
+        "StrlSchV_landfill_100": ("Co60", 6.0),
+        "StrlSchV_landfill_1000": ("Co60", 2.0),
+        "StrlSchV_incineration_100": ("Co60", 7.0),
+        "StrlSchV_incineration_1000": ("Co60", 2.0),
+        "StrlSchV_metal_recycling": ("Co60", 0.6),
+        "StrlSchV_exemption_activity": ("Co60", 1e5),
+        "EU_BSS_clearance": ("Co60", 0.1),
+        "IAEA_GSR3_clearance": ("Co60", 0.1),
+        "Fetter": ("C14", 600.0),
+        "NRC_long": ("C14", 8.0),
+        "NRC_short_A": ("Cs137", 1.0),
+        "NRC_short_B": ("Cs137", 44.0),
+        "NRC_short_C": ("Cs137", 4600.0),
+    }
+    assert set(pinned) == set(ALL_SETS), "every registered set needs a pinned value"
+    for name, (nuclide_name, expected) in pinned.items():
+        assert get_limit_set(name).limits[nuclide_name] == expected, name

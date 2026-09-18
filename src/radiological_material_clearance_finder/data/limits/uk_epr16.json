@@ -579,7 +579,7 @@
    "threshold": 1.0,
    "source": "Environmental Permitting (England and Wales) Regulations 2016, Schedule 23, Part 3 Table 2",
    "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
-   "retrieved": "2026-09-11",
+   "retrieved": "2026-09-18",
    "notes": "Below these concentrations a substance is not radioactive material or radioactive waste, which is the UK equivalent of clearance. The catch-all of 0.01 Bq/g applies to any artificial radionuclide the table does not list, so unlisted nuclides are limited rather than unregulated. Part 2 paragraph 7 places a substance outside the regulation when none of its radionuclides has a half-life exceeding 100 seconds, which is a test on the whole material. These values are a separate derivation from the exemption values of EU directive 2013/59/Euratom Annex VII, based on a 10 microsievert per year dose criterion via Euratom RP 122 part 1, and are generally ten times stricter, so they are not expected to match EU_BSS_clearance or UK_IRR17_notification."
   },
   {
@@ -890,7 +890,7 @@
    "threshold": 1.0,
    "source": "Environmental Permitting (England and Wales) Regulations 2016, Schedule 23, Part 3 Table 1",
    "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
-   "retrieved": "2026-09-11",
+   "retrieved": "2026-09-18",
    "notes": "Applies to naturally occurring radionuclides in a NORM industrial activity, not to artificial ones. Entries keyed with a _sec suffix are the whole decay chain in secular equilibrium; the plain key is the value covering only the daughters listed in Table 3."
   },
   {
@@ -1258,6 +1258,7 @@
      "Tl207"
     ],
     "Ra224": [
+     "Rn220",
      "Po216",
      "Pb212",
      "Bi212",
@@ -1265,6 +1266,7 @@
      "Po212"
     ],
     "Ra226": [
+     "Rn222",
      "Po218",
      "Pb214",
      "Bi214",
@@ -1371,7 +1373,7 @@
    "threshold": 1.0,
    "source": "Environmental Permitting (England and Wales) Regulations 2016, Schedule 23, Part 6 Table 5",
    "url": "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23",
-   "retrieved": "2026-09-11",
+   "retrieved": "2026-09-18",
    "notes": "Exemption from the need for a permit to keep and use radioactive material. The regulation pairs this concentration with a maximum total activity on the premises, which is a quantity limit rather than a concentration and is not part of this index. The secular equilibrium daughters come from Part 6 Table 8, which paragraph 29 designates for this Part, and not from the Part 3 Table 3 used by the out of scope sets."
   }
  ]

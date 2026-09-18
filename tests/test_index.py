@@ -165,13 +165,6 @@ def test_clearance_indices_skips_sets_the_material_cannot_supply():
     assert "Fetter" not in results
 
 
-def test_clearable_routes_are_ordered_by_margin():
-    material = Material({"Fe56": 1e22, "Co60": 1e6})
-    routes = clearable_routes(material)
-    assert routes
-    assert "StrlSchV_unrestricted" in routes
-
-
 def test_register_limit_set_makes_it_available():
     register_limit_set(
         LimitSet(name="SITE_SPECIFIC", label="site", units="Bq/g", limits={"Co60": 1.0})

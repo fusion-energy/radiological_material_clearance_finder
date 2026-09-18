@@ -128,8 +128,13 @@ def parse_daughters(table_body: str) -> tuple[dict, dict]:
         except nuc.NuclideNameError:
             continue
         daughters = sec if marker == "sec" else plus
+        # Two Table 8 rows qualify their list with prose, as in "Where Ra-224+
+        # is referred to in Table 5: Rn-220, Po-216, ...". Splitting on commas
+        # without stripping that prefix glues it to the first daughter, which
+        # then fails to parse and is dropped, silently losing Rn-220 and Rn-222.
+        progeny = cells[1].split(":", 1)[-1] if ":" in cells[1] else cells[1]
         names = []
-        for piece in re.split(r"[,;]", cells[1]):
+        for piece in re.split(r"[,;]", progeny):
             piece = piece.strip()
             if not piece:
                 continue

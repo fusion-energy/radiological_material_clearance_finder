@@ -134,3 +134,24 @@ def test_both_tables_use_rule_a5():
 def test_neither_table_uses_rule_a6():
     """61.55(a)(6): nothing from either table present means Class A."""
     assert nrc_waste_class(steel({"Fe55": 1e6})) == "Class A"
+
+
+def test_carbon_14_shares_the_tritium_vllw_allowance():
+    """The 2007 policy pairs them, so C-14 gets the 40 MBq/te allowance too.
+
+    Counting it in the general 4 MBq/te term instead classifies a material a
+    whole category too high.
+    """
+    # 30 Bq/g of C-14 alone: within the shared 40 Bq/g allowance.
+    assert uk_waste_category(steel({"C14": 30.0})).category == "VLLW"
+    # Anything without that allowance is LLW at the same activity.
+    assert uk_waste_category(steel({"Cs137": 30.0})).category == "LLW"
+    # Tritium and C-14 share one allowance, so 25 each exceeds it together.
+    assert uk_waste_category(steel({"H3": 25.0, "C14": 25.0})).category == "LLW"
+    assert uk_waste_category(steel({"H3": 15.0, "C14": 15.0})).category == "VLLW"
+
+
+def test_the_shared_allowance_is_reported():
+    result = uk_waste_category(steel({"H3": 10.0, "C14": 20.0}))
+    assert result.tritium_and_c14 == pytest.approx(30.0)
+    assert "carbon-14" in result.reason

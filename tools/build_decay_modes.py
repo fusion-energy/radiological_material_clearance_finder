@@ -58,6 +58,7 @@ def parse(text: str) -> dict[str, float]:
         alpha = 0.0
         measured = 0.0
         unmeasured_alpha = False
+        unmeasured_other = False
         for index in (1, 2, 3):
             mode = (row.get(f"decay_{index}") or "").strip().upper()
             if not mode:
@@ -68,11 +69,18 @@ def parse(text: str) -> dict[str, float]:
             except ValueError:
                 if mode == "A":
                     unmeasured_alpha = True
+                else:
+                    unmeasured_other = True
                 continue
             measured += value
             if mode == "A":
                 alpha += value
-        if unmeasured_alpha:
+        # The remainder only belongs to alpha when alpha is the only branch
+        # whose intensity is unknown. With another unmeasured branch competing
+        # for it, handing the lot to alpha would overstate the alpha fraction
+        # and put activity in the wrong half of the UK alpha and beta or gamma
+        # split.
+        if unmeasured_alpha and not unmeasured_other:
             alpha += max(0.0, 100.0 - measured)
         if alpha > 0.0:
             fractions[name] = min(alpha, 100.0) / 100.0

@@ -125,3 +125,32 @@ def test_total_activity_in_curies():
         material.activity("Bq") / decay.BECQUEREL_PER_CURIE
     )
     assert material.activity("Ci") == pytest.approx(1131, rel=1e-3)
+
+
+def test_an_over_determined_material_that_disagrees_is_rejected():
+    """Atom counts and density times volume must describe the same material.
+
+    Silently preferring one puts the total activity out by whatever the ratio
+    happens to be, with nothing to show for it.
+    """
+    # 1 g of Co-60, declared as 1 g/cm3 over 1 cm3: consistent.
+    consistent = Material.from_masses({"Co60": 1.0}, density=1.0)
+    consistent.volume = 1.0
+    assert consistent.mass == pytest.approx(1.0, rel=1e-6)
+
+    inconsistent = Material.from_masses({"Co60": 1.0}, density=1.0)
+    inconsistent.volume = 1000.0
+    with pytest.raises(ValueError, match="over-determined and inconsistent"):
+        inconsistent.mass
+
+
+def test_an_over_determined_material_within_tolerance_is_accepted():
+    material = Material.from_masses({"Co60": 1.0}, density=1.0)
+    material.volume = 1.005
+    assert material.mass == pytest.approx(1.0, rel=1e-3)
+
+
+def test_from_atom_densities_rejects_a_density_keyword():
+    """It derives the density, so a supplied one could only contradict it."""
+    with pytest.raises(TypeError, match="derives the mass density"):
+        Material.from_atom_densities({"Fe56": 0.0849}, density=7.87)

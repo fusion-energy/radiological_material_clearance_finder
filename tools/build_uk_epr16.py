@@ -214,6 +214,7 @@ def main() -> None:
     daughters = parse_daughters(table3)
     plus_daughters, sec_daughters = daughters
     check_markers_have_daughters(table2, daughters, "Table 2")
+    check_markers_have_daughters(table1, daughters, "Table 1")
 
     artificial, artificial_alt = parse_limits(table2, 1, "EPR16 Table 2")
     catch_all = find_catch_all(table2)

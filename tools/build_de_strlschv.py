@@ -117,6 +117,56 @@ def find_tables(document: str) -> tuple[list[list[str]], list[list[str]]]:
     return main, daughters
 
 
+def check_column_headings(table: list[list[str]]) -> None:
+    """Confirm each Spalte still carries the heading this script expects.
+
+    The row count floor catches a column that has gone empty, but not the more
+    likely drift: a column inserted or removed upstream, which shifts every
+    later Spalte by one and yields a full, plausible, entirely wrong table.
+
+    The headings are the only thing tying a column index to its meaning, so this
+    checks the heading AT each Spalte rather than merely that it appears
+    somewhere in the header. The header is split across two rows: the first
+    carries Spalten 1 to 5, and the second carries 6 onwards under the
+    "spezifische Freigabe von" span.
+
+    Umlauts are folded, because the strings in PATHWAYS are ASCII while the
+    source is ISO-8859-1.
+    """
+    def fold(text: str) -> str:
+        return (
+            text.replace("\u00e4", "ae").replace("\u00f6", "oe")
+            .replace("\u00fc", "ue").replace("\u00df", "ss")
+        )
+
+    if len(table) < 2:
+        raise SystemExit("the header rows are missing from Tabelle 1")
+    first, second = table[0], table[1]
+    headings: dict[int, str] = {}
+    for index, cell in enumerate(first[:5]):
+        headings[index + 1] = fold(cell)
+    for index, cell in enumerate(second):
+        headings[index + 6] = fold(cell)
+
+    problems = []
+    for name, (spalte, _label, german) in PATHWAYS.items():
+        found = headings.get(spalte, "")
+        # The stored heading is the full published one; compare on a distinctive
+        # leading fragment, since the cell can be wrapped or abbreviated.
+        fragment = german.split(" in Bq")[0][:38]
+        if fragment not in found:
+            problems.append(
+                f"Spalte {spalte} ({name}): expected a heading starting "
+                f"{fragment!r}, found {found[:60]!r}"
+            )
+    if problems:
+        raise SystemExit(
+            "the published column headings no longer line up with the Spalte "
+            "mapping this script uses, so the columns have shifted and every "
+            "value would be read from the wrong one:\n  " + "\n  ".join(problems)
+        )
+
+
 def check_column_numbering(table: list[list[str]]) -> None:
     """Confirm the Spalte numbering row is where the column mapping assumes."""
     for row in table[:6]:
@@ -256,6 +306,7 @@ def main() -> None:
     document = args.cached.read_text(encoding=ENCODING) if args.cached else fetch(URL)
     main_table, daughter_table = find_tables(document)
     check_column_numbering(main_table)
+    check_column_headings(main_table)
 
     daughters = parse_daughters(daughter_table)
     check_markers_have_daughters(main_table, daughters)

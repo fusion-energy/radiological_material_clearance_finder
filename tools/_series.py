@@ -109,10 +109,21 @@ def series_members(text: str, head: str) -> list[str]:
                 pass
             stack.append((key[0] + shift[0], key[1] + shift[1]))
 
-    # The Livechart ground state table carries no isomers, but they are part of
-    # the series: Th-234 decays overwhelmingly through Pa-234m rather than
-    # through the Pa-234 ground state. Add any isomer of a member that the
-    # package's own decay data knows about.
+    # The Livechart ground state table carries no isomers, but a series can run
+    # through one: Th-234 decays overwhelmingly to Pa-234m rather than to the
+    # Pa-234 ground state, and the regulations list Pa-234m as a progeny in
+    # their own tables. So isomers of members are included.
+    #
+    # This is deliberately over-inclusive. The source records which nuclide a
+    # decay produces but not which level of it, so there is no way from this
+    # data to tell that Pb-210 populates the Bi-210 ground state rather than
+    # Bi-210m. Isomers such as Bi-210m, Bi-212m and Po-212m are therefore
+    # included without positive evidence that the chain feeds them.
+    #
+    # The direction of that error is the safe one. Including an isomer applies
+    # the series limit to it; excluding it would leave it with no limit at all
+    # in a set that has no catch-all, so it would carry activity that the index
+    # ignores. Over-inclusion is stricter, under-inclusion is a silent gap.
     from radiological_material_clearance_finder.decay import default_decay_data
 
     data = default_decay_data()
@@ -122,3 +133,5 @@ def series_members(text: str, head: str) -> list[str]:
             if data.knows(isomer) and data.half_life(isomer) is not None:
                 members.add(isomer)
     return sorted(members)
+
+

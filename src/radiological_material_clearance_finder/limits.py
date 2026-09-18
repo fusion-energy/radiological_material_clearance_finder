@@ -32,7 +32,7 @@ _LIMITS_DIR = Path(__file__).parent / "data" / "limits"
 _FIVE_YEARS = 5.0 * 365.25 * 86400.0
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class LimitSet:
     """A named table of per-nuclide activity limits.
 
@@ -152,6 +152,16 @@ class LimitSet:
             )
         if not self.threshold > 0.0:
             raise ValueError(f"{self.name}: threshold must be positive, got {self.threshold}")
+        if self.min_half_life_scope is not None:
+            scope = self.min_half_life_scope
+            if not scope > 0.0 or scope != scope or scope == float("inf"):
+                raise ValueError(
+                    f"{self.name}: min_half_life_scope is {scope}, but it must be "
+                    f"positive and finite. It is not a ratio, it decides whether the "
+                    f"material is in scope at all, so an infinite value would put "
+                    f"every material out of scope and report it clearable whatever "
+                    f"its index."
+                )
         if self.default_limit is not None and not self.default_limit > 0.0:
             raise ValueError(
                 f"{self.name}: default_limit must be positive, got {self.default_limit}"
@@ -167,6 +177,16 @@ class LimitSet:
                         f"nothing, so both would be read as no limit at all. A nuclide "
                         f"the source places no limit on belongs in unlimited."
                     )
+
+    def __hash__(self) -> int:
+        """Hash by name and units.
+
+        The generated hash would cover every field, and five of them are dicts,
+        so it raises TypeError even though the class presents as immutable. A
+        set is identified by its name, which the registry already treats as a
+        key, so that is what it hashes by. Equality still compares every field.
+        """
+        return hash((self.name, self.units))
 
     def daughters_of(self, parent: str) -> tuple[str, ...]:
         """Daughters whose activity this set's limit for ``parent`` already covers."""
@@ -274,7 +294,16 @@ def _promote_sec_only_limits(limits: dict[str, float]) -> dict[str, float]:
 def _from_dict(payload: Mapping) -> LimitSet:
     """Build a limit set from its JSON form. LimitSet.__post_init__ does the rest."""
     data = dict(payload)
-    known = {f for f in LimitSet.__dataclass_fields__}
+    known = set(LimitSet.__dataclass_fields__)
+    # Keys beginning with an underscore are provenance for the file itself.
+    unknown = {k for k in data if k not in known and not k.startswith("_")}
+    if unknown:
+        raise ValueError(
+            f"{data.get('name', '?')}: unrecognised field(s) {sorted(unknown)} in the "
+            f"limit set data. Dropping them silently would hide a build script typo "
+            f"or a field renamed on one side only, and the set would load looking "
+            f"complete while missing whatever the field carried."
+        )
     return LimitSet(**{k: v for k, v in data.items() if k in known})
 
 

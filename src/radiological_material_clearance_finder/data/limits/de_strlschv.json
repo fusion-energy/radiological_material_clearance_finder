@@ -1503,7 +1503,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 3",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: Freigrenze, uneingeschraenkte Freigabe von festen u. fluessigen Stoffen in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -2521,7 +2521,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 6",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: Bauschutt von mehr als 1000 Mg/a in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -3373,7 +3373,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 7",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: Bodenflaechen in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -4269,7 +4269,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 8",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: festen Stoffen bis zu 100 Mg/a zur Beseitigung auf Deponien in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -5185,7 +5185,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 9",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: Stoffen bis zu 100 Mg/a zur Beseitigung in Verbrennungsanlagen in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -6081,7 +6081,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 10",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: festen Stoffen bis zu 1000 Mg/a zur Beseitigung auf Deponien in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -6997,7 +6997,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 11",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: Stoffen bis zu 1000 Mg/a zur Beseitigung in Verbrennungsanlagen in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -8021,7 +8021,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 14",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "German column heading: Metallschrott zum Recycling in Bq/g. Mg/a is Megagramm im Kalenderjahr, tonnes per calendar year, and refers to the annual mass of cleared material the receiving facility accepts, not to the mass of any one item. A lower annual throughput permits a higher specific activity, because the collective dose it can produce is smaller. Anlage 4 Tabelle 1 also tabulates a high activity source threshold in TBq (Spalte 4) and three surface contamination columns in Bq/cm2 (Spalte 5, and Spalten 12 and 13 for building surfaces), which this package does not model because it works from a bulk inventory rather than a surface."
   },
   {
@@ -9518,7 +9518,7 @@
    "threshold": 1.0,
    "source": "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1, Spalte 2",
    "url": "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html",
-   "retrieved": "2026-09-10",
+   "retrieved": "2026-09-18",
    "notes": "A limit on total activity rather than concentration, so the material needs an absolute mass or volume for this to be evaluated. The regulation applies the exemption when either this or the Spalte 3 concentration limit is met."
   }
  ]

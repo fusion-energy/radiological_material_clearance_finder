@@ -198,7 +198,8 @@ def test_a_parent_only_accounts_for_the_daughter_activity_it_supports():
     # In equilibrium the daughter is fully accounted for.
     equilibrium = Material.from_specific_activities({"Sr90": 100.0, "Y90": 100.0})
     result = clearance_index(equilibrium, limits)
-    assert result.excluded == {"Y90": result.excluded["Y90"]}
+    assert set(result.excluded) == {"Y90"}
+    assert "secular equilibrium with Sr90" in result.excluded["Y90"]
     assert result.index == pytest.approx(100.0)
 
     # A trace of parent cannot account for a large daughter.
@@ -309,7 +310,7 @@ def test_a_limit_set_built_in_python_canonicalises_its_keys():
     [
         ({"units": "sieverts"}, "not one of"),
         ({"threshold": 0.0}, "threshold must be positive"),
-        ({"limits": {"Co60": 0.0}}, "must be positive"),
+        ({"limits": {"Co60": 0.0}}, r"limits\[Co60\] is 0.0"),
         ({"default_limit": -1.0}, "default_limit must be positive"),
     ],
 )

@@ -81,3 +81,55 @@ def test_an_unknown_ground_state_still_raises():
     data = decay.DecayData(half_lives={}, atomic_masses={"Ag108": 107.9059502})
     with pytest.raises(decay.UnknownNuclideError):
         data.atomic_mass("Xe135_m1")
+
+
+def _chain(tmp_path, body):
+    path = tmp_path / "chain.xml"
+    path.write_text(f"<depletion_chain>{body}</depletion_chain>")
+    return path
+
+
+def test_a_chain_entry_without_a_half_life_marks_the_nuclide_stable(tmp_path):
+    """Otherwise a chain can only ever add decay, never remove it."""
+    data = decay.DecayData.from_chain_xml(
+        _chain(tmp_path, '<nuclide name="Co60" half_life="1.0"/><nuclide name="Cs137"/>')
+    )
+    assert data.half_life("Co60") == 1.0
+    assert data.half_life("Cs137") is None
+    assert data.decay_constant("Cs137") == 0.0
+
+
+@pytest.mark.parametrize(
+    "body, match",
+    [
+        ('<nuclide name="Co60" half_life="-1"/>', "positive and finite"),
+        ('<nuclide name="Co60" half_life="0"/>', "positive and finite"),
+        ('<nuclide name="Co60" half_life="inf"/>', "positive and finite"),
+        ('<nuclide name="Co60" half_life="abc"/>', "not a number"),
+        ('', "no readable nuclide entries"),
+    ],
+)
+def test_a_malformed_chain_is_rejected(tmp_path, body, match):
+    with pytest.raises(ValueError, match=match):
+        decay.DecayData.from_chain_xml(_chain(tmp_path, body))
+
+
+def test_an_unparseable_chain_file_is_rejected(tmp_path):
+    path = tmp_path / "broken.xml"
+    path.write_text("<depletion_chain><unclosed>")
+    with pytest.raises(ValueError, match="not readable as a depletion chain"):
+        decay.DecayData.from_chain_xml(path)
+
+
+def test_an_unmeasured_alpha_branch_does_not_take_a_measured_branch_s_share():
+    """Change 13: the remainder goes to alpha only when alpha alone is unmeasured.
+
+    Am-234 decays by electron capture at 100 percent with an alpha branch of
+    unrecorded intensity. Handing alpha the whole remainder made it look like a
+    pure alpha emitter, which puts its activity in the wrong half of the UK
+    alpha and beta or gamma split.
+    """
+    data = decay.default_decay_data()
+    for name in ("Am234", "Pm128", "Ta164"):
+        if data.knows(name):
+            assert data.alpha_fraction(name) < 1.0, f"{name} is not a pure alpha emitter"

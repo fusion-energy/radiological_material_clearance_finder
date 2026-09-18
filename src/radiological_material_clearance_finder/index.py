@@ -42,7 +42,10 @@ class ClearanceResult:
             always that a parent's limit already accounts for it in full.
         credited: Nuclide to the activity a parent accounted for, where the
             parent could only support part of it. The remainder was assessed
-            against the nuclide's own limit in the usual way.
+            against the nuclide's own limit in the usual way, so for these
+            nuclides the ratio in `by_nuclide` is computed from
+            ``activities[name] - credited[name]`` rather than from the full
+            activity. `assessed_activity` returns that residual directly.
         uncovered: Activity present with no limit and no catch-all, so absent
             from the index entirely. The number to check before trusting a
             comfortable index.
@@ -89,6 +92,17 @@ class ClearanceResult:
         total = sum(self.activities.values())
         return self.uncovered_activity / total if total > 0.0 else 0.0
 
+    def assessed_activity(self, nuclide: str) -> float:
+        """The activity actually charged against the limit for one nuclide.
+
+        The same as its total activity, except where a parent accounted for part
+        of it, in which case the remainder is what the ratio was computed from.
+
+        Args:
+            nuclide: Canonical nuclide name.
+        """
+        return self.activities.get(nuclide, 0.0) - self.credited.get(nuclide, 0.0)
+
     def dominant(self, count: int = 10) -> list[tuple[str, float]]:
         """The nuclides contributing most to the index.
 
@@ -131,7 +145,7 @@ class ClearanceResult:
             for name, value in self.dominant(10):
                 share = value / self.index if self.index else 0.0
                 lines.append(
-                    f"  {name:<10} {self.activities.get(name, 0.0):>12.4g} "
+                    f"  {name:<10} {self.assessed_activity(name):>12.4g} "
                     f"{self.limits_used.get(name, float('nan')):>12.4g} {share:>7.1%}"
                 )
         if self.uncovered:
@@ -330,7 +344,11 @@ def _resolve_equilibrium(
                     f"accounts for it"
                 )
             elif supported > 0.0:
-                credited[daughter] = supported
+                # A daughter can have more than one parent present. Each parent
+                # supports at most its own activity, and taking the largest
+                # rather than whichever came last keeps the result independent
+                # of iteration order.
+                credited[daughter] = max(credited.get(daughter, 0.0), supported)
     return overrides, excluded, credited
 
 
@@ -407,6 +425,13 @@ def clearance_index(
             else:
                 uncovered[name] = activity
                 continue
+        if limit <= 0.0:
+            # LimitSet validates positivity, but a dynamic rule computes its
+            # limits at evaluation time and is not covered by that. Reporting
+            # the nuclide as uncovered is the honest outcome; dividing by it
+            # would raise, and skipping it silently would drop the activity.
+            uncovered[name] = activity
+            continue
         ratios[name] = activity / limit
         used[name] = limit
 

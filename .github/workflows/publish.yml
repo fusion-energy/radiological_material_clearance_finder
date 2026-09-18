@@ -56,6 +56,7 @@ jobs:
           import glob
           import json
           import os
+          import pathlib
           import re
           import tarfile
           import tomllib
@@ -63,19 +64,20 @@ jobs:
 
           PACKAGE = "radiological_material_clearance_finder"
 
-          # Every JSON table the package loads at runtime, relative to the
-          # package directory. Update this list when a table is added.
-          EXPECTED_DATA_FILES = [
-              "data/alpha_fraction.json",
-              "data/atomic_mass.json",
-              "data/half_life.json",
-              "data/limits/de_strlschv.json",
-              "data/limits/eu_bss.json",
-              "data/limits/iaea.json",
-              "data/limits/uk_epr16.json",
-              "data/limits/uk_irr17.json",
-              "data/limits/us.json",
-          ]
+          # Derived from the source tree rather than hand maintained, so a table
+          # added later is checked without anyone remembering to add it here. The
+          # count is asserted too, since an empty glob would make every check
+          # below vacuously pass.
+          EXPECTED_DATA_FILES = sorted(
+              str(path.relative_to(f"src/{PACKAGE}"))
+              for path in pathlib.Path(f"src/{PACKAGE}/data").rglob("*.json")
+          )
+          if len(EXPECTED_DATA_FILES) < 9:
+              print(
+                  f"::error::only {len(EXPECTED_DATA_FILES)} data files found in the "
+                  f"source tree, expected at least 9"
+              )
+              raise SystemExit(1)
 
           problems = []
 
@@ -149,12 +151,24 @@ jobs:
           print(f"  sdist version          {sdist_version}")
           print(f"  __version__            {dunder_version}")
 
+          def normalise(version):
+              """PEP 440 normalisation, as the artifact filenames carry it.
+
+              A legitimate version such as 0.2.0-rc1 appears in the filenames as
+              0.2.0rc1, so comparing raw strings would fail a release that is
+              perfectly correct.
+              """
+              if version is None:
+                  return None
+              text = version.strip().lower().replace("-", "").replace("_", "")
+              return text
+
           for label, value in (
               ("wheel filename", wheel_version),
               ("sdist filename", sdist_version),
               (f"__version__ in src/{PACKAGE}/__init__.py", dunder_version),
           ):
-              if value != pyproject_version:
+              if normalise(value) != normalise(pyproject_version):
                   problems.append(
                       f"{label} says {value}, but pyproject.toml says "
                       f"{pyproject_version}, these have to agree"
@@ -165,7 +179,7 @@ jobs:
           tag = os.environ.get("RELEASE_TAG", "")
           if tag:
               print(f"  release tag            {tag}")
-              if tag != f"v{pyproject_version}":
+              if normalise(tag.lstrip("v")) != normalise(pyproject_version):
                   problems.append(
                       f"release tag {tag} does not match the version in "
                       f"pyproject.toml, expected v{pyproject_version}. Either "

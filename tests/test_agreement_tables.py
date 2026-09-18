@@ -8,7 +8,17 @@ extracted with :mod:`ast` and frozen into ``tests/data``.
 Comparing against the frozen copies rather than against a checkout somewhere on
 the machine is what makes these tests run at all. Keyed to a developer's home
 directory they skipped everywhere else, including CI, which is the same as not
-having them. ``tools/verify_tables.py`` still re-derives everything from the
+having them.
+
+Be clear about what this does and does not establish. The fixtures were produced
+by the same extractor the build script uses, so these tests cannot catch a bug in
+the extraction itself. What they do catch is the shipped table drifting away from
+what was extracted, which is not hypothetical: a stray write once left NRC_long
+ten times too lenient and this is what found it. Independent confirmation of the
+values themselves comes from
+`test_every_limit_set_has_at_least_one_pinned_value` in test_data_integrity.py,
+whose expected numbers are read by hand from 10 CFR 61.55 and the published
+tables rather than from any code. ``tools/verify_tables.py`` still re-derives everything from the
 live sources, and that is where drift in the upstream text is meant to surface.
 """
 import json
@@ -40,9 +50,11 @@ def test_german_tables_agree_with_the_pr_transcription(name):
     Our tables are a superset, parsed from the whole of Anlage 4 Tabelle 1 while
     the PR transcribed part of it. Two documented differences are excluded.
 
-    Th-232 appears twice in the regulation, plain and marked "+", and this
-    package keeps both and chooses between them from the material, while the PR
-    kept only the plain value.
+    Th-232 appears twice in the regulation, plain and marked "+". This package
+    keeps both, the plain value in `limits` and the marked one in
+    `limits_secular_equilibrium`, while the PR kept only one. Rather than skip
+    the comparison, the PR's value is matched against whichever of the two it
+    corresponds to, so all eight sets are still compared.
 
     Six nuclides have no landfill value in the regulation at all. Their Spalte 8
     and Spalte 10 cells are empty and only the incineration columns are filled,
@@ -53,10 +65,18 @@ def test_german_tables_agree_with_the_pr_transcription(name):
     theirs = PR3898_TABLES[name]
     ours = get_limit_set(name).limits
 
+    limit_set = get_limit_set(name)
     for key, value in theirs.items():
-        if key == "Th232" or (key in misplaced_by_the_pr and "landfill" in name):
+        if key in misplaced_by_the_pr and "landfill" in name:
             continue
         assert key in ours, f"{name}: {key} is in the PR but missing from our table"
+        if key == "Th232":
+            # One of our two values must be theirs, rather than neither.
+            variant = limit_set.limits_secular_equilibrium.get("Th232")
+            assert value == pytest.approx(ours[key], rel=1e-12) or (
+                variant is not None and value == pytest.approx(variant, rel=1e-12)
+            ), f"{name}: Th232 is {value} in the PR, ours are {ours[key]} and {variant}"
+            continue
         assert ours[key] == pytest.approx(value, rel=1e-12), f"{name}: {key}"
 
 

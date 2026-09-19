@@ -20,14 +20,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       # Not the test matrix. The package supports 3.9, but mkdocstrings 1.0 and
       # mkdocstrings-python 2.0 dropped it, so the docs toolchain needs 3.10 or
       # newer regardless of what the package itself supports.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

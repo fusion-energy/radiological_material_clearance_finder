@@ -1,0 +1,13 @@
+# Pinned so a docs build is reproducible.
+#
+# mkdocs is capped below 2.0 deliberately: the 2.0 pre-releases are already on
+# PyPI, drop the plugin system and are declared incompatible with Material.
+#
+# Note this toolchain needs Python 3.10 or newer, because mkdocstrings 1.0 and
+# mkdocstrings-python 2.0 dropped 3.9. The package itself still supports 3.9,
+# which is why the docs job pins its own interpreter rather than sharing the
+# test matrix.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+mkdocstrings==1.0.6
+mkdocstrings-python==2.0.8

@@ -1,0 +1,135 @@
+"""Decay and mass data, checked against values that are known independently."""
+import math
+
+import pytest
+
+from radiological_material_clearance_finder import decay
+
+
+def test_half_lives_match_published_values():
+    year = 365.25 * 86400
+    assert decay.half_life("Co60") / year == pytest.approx(5.27, rel=1e-3)
+    assert decay.half_life("Cs137") / year == pytest.approx(30.08, rel=1e-3)
+    assert decay.half_life("H3") / year == pytest.approx(12.32, rel=1e-3)
+    assert decay.half_life("Sr90") / year == pytest.approx(28.9, rel=1e-2)
+
+
+def test_stable_nuclides_have_no_half_life():
+    assert decay.half_life("Fe56") is None
+    assert decay.decay_constant("Fe56") == 0.0
+    assert not decay.is_radioactive("Fe56")
+
+
+def test_decay_constant_follows_from_the_half_life():
+    assert decay.decay_constant("Co60") == pytest.approx(
+        math.log(2) / decay.half_life("Co60")
+    )
+
+
+def test_atomic_masses_match_ame2020():
+    assert decay.atomic_mass("H1") == pytest.approx(1.007825031898, rel=1e-11)
+    assert decay.atomic_mass("Co60") == pytest.approx(59.933815536, rel=1e-11)
+    assert decay.atomic_mass("U238") == pytest.approx(238.050786936, rel=1e-11)
+
+
+def test_metastable_states_take_the_ground_state_mass():
+    assert decay.atomic_mass("Ag108_m1") == pytest.approx(decay.atomic_mass("Ag108"))
+
+
+def test_specific_activity_of_pure_cobalt_60():
+    """The textbook value is 1131 Ci/g."""
+    per_gram = decay.decay_constant("Co60") * decay.AVOGADRO / decay.atomic_mass("Co60")
+    assert per_gram / decay.BECQUEREL_PER_CURIE == pytest.approx(1131, rel=1e-3)
+
+
+def test_alpha_fractions():
+    assert decay.alpha_fraction("Am241") == pytest.approx(1.0)
+    assert decay.alpha_fraction("Pu239") == pytest.approx(1.0)
+    # Bi-212 branches 35.94 percent alpha and the rest beta.
+    assert decay.alpha_fraction("Bi212") == pytest.approx(0.3594, abs=1e-4)
+    assert decay.alpha_fraction("Cs137") == 0.0
+    assert decay.alpha_fraction("Ag108_m1") == 0.0
+
+
+def test_unknown_nuclide_raises_rather_than_being_assumed_stable():
+    with pytest.raises(decay.UnknownNuclideError):
+        decay.half_life("Og296")
+
+
+def test_overrides_replace_half_lives():
+    data = decay.DecayData().with_overrides({"Co-60": 1.0})
+    assert data.half_life("Co60") == 1.0
+    assert data.half_life("Cs137") == decay.half_life("Cs137")
+    assert data.alpha_fraction("Am241") == pytest.approx(1.0)
+
+
+def test_override_to_none_marks_a_nuclide_stable():
+    data = decay.DecayData().with_overrides({"Co60": None})
+    assert data.half_life("Co60") is None
+
+
+def test_a_metastable_state_falls_back_to_its_ground_state_mass():
+    """AME2020 tabulates ground states, so the isomer must borrow that mass."""
+    data = decay.DecayData(
+        half_lives={"Ag108_m1": 1.0}, atomic_masses={"Ag108": 107.9059502}
+    )
+    assert data.atomic_mass("Ag108_m1") == pytest.approx(107.9059502)
+    assert data.knows("Ag108_m1")
+
+
+def test_an_unknown_ground_state_still_raises():
+    data = decay.DecayData(half_lives={}, atomic_masses={"Ag108": 107.9059502})
+    with pytest.raises(decay.UnknownNuclideError):
+        data.atomic_mass("Xe135_m1")
+
+
+def _chain(tmp_path, body):
+    path = tmp_path / "chain.xml"
+    path.write_text(f"<depletion_chain>{body}</depletion_chain>")
+    return path
+
+
+def test_a_chain_entry_without_a_half_life_marks_the_nuclide_stable(tmp_path):
+    """Otherwise a chain can only ever add decay, never remove it."""
+    data = decay.DecayData.from_chain_xml(
+        _chain(tmp_path, '<nuclide name="Co60" half_life="1.0"/><nuclide name="Cs137"/>')
+    )
+    assert data.half_life("Co60") == 1.0
+    assert data.half_life("Cs137") is None
+    assert data.decay_constant("Cs137") == 0.0
+
+
+@pytest.mark.parametrize(
+    "body, match",
+    [
+        ('<nuclide name="Co60" half_life="-1"/>', "positive and finite"),
+        ('<nuclide name="Co60" half_life="0"/>', "positive and finite"),
+        ('<nuclide name="Co60" half_life="inf"/>', "positive and finite"),
+        ('<nuclide name="Co60" half_life="abc"/>', "not a number"),
+        ('', "no readable nuclide entries"),
+    ],
+)
+def test_a_malformed_chain_is_rejected(tmp_path, body, match):
+    with pytest.raises(ValueError, match=match):
+        decay.DecayData.from_chain_xml(_chain(tmp_path, body))
+
+
+def test_an_unparseable_chain_file_is_rejected(tmp_path):
+    path = tmp_path / "broken.xml"
+    path.write_text("<depletion_chain><unclosed>")
+    with pytest.raises(ValueError, match="not readable as a depletion chain"):
+        decay.DecayData.from_chain_xml(path)
+
+
+def test_an_unmeasured_alpha_branch_does_not_take_a_measured_branch_s_share():
+    """Change 13: the remainder goes to alpha only when alpha alone is unmeasured.
+
+    Am-234 decays by electron capture at 100 percent with an alpha branch of
+    unrecorded intensity. Handing alpha the whole remainder made it look like a
+    pure alpha emitter, which puts its activity in the wrong half of the UK
+    alpha and beta or gamma split.
+    """
+    data = decay.default_decay_data()
+    for name in ("Am234", "Pm128", "Ta164"):
+        if data.knows(name):
+            assert data.alpha_fraction(name) < 1.0, f"{name} is not a pure alpha emitter"

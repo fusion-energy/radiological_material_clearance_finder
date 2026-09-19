@@ -1,0 +1,318 @@
+name: publish
+
+on:
+  release:
+    types: [published]
+  # A manual run builds and tests the artifacts but never uploads them, so the
+  # whole release path can be rehearsed. Only a published release publishes.
+  workflow_dispatch:
+
+# Nothing is granted by default, each job asks for exactly what it needs.
+permissions: {}
+
+concurrency:
+  # Serialise runs. Two uploads racing for the same version would leave PyPI in
+  # a half published state, and PyPI never lets a version be uploaded twice.
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Builds the sdist and then builds the wheel from that sdist, so an sdist
+    # that is missing a file fails here rather than in a downstream packager.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Pinned rather than matrixed. One pure python wheel comes out whichever
+      # interpreter builds it, and the checks below use tomllib, which needs 3.11
+      # or newer.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: python -m pip install build twine
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Check metadata
+        run: python -m twine check --strict dist/*
+
+      # The data tables are what the package is for, and hatchling picks them up
+      # implicitly while honouring .gitignore, so a stray ignore rule could drop
+      # them from the wheel with no error at all. The installed package would
+      # then raise on import. This step is the thing that stops that shipping.
+      - name: Check the artifacts
+        id: artifacts
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import glob
+          import json
+          import os
+          import pathlib
+          import re
+          import tarfile
+          import tomllib
+          import zipfile
+
+          PACKAGE = "radiological_material_clearance_finder"
+
+          # Derived from the source tree rather than hand maintained, so a table
+          # added later is checked without anyone remembering to add it here. The
+          # count is asserted too, since an empty glob would make every check
+          # below vacuously pass.
+          EXPECTED_DATA_FILES = sorted(
+              str(path.relative_to(f"src/{PACKAGE}"))
+              for path in pathlib.Path(f"src/{PACKAGE}/data").rglob("*.json")
+          )
+          if len(EXPECTED_DATA_FILES) < 9:
+              print(
+                  f"::error::only {len(EXPECTED_DATA_FILES)} data files found in the "
+                  f"source tree, expected at least 9"
+              )
+              raise SystemExit(1)
+
+          problems = []
+
+          # The publish step runs twine on dist/* unfiltered, so anything else in
+          # here would be handed to twine as a distribution and abort the upload.
+          entries = sorted(glob.glob("dist/*"))
+          wheels = [e for e in entries if e.endswith(".whl")]
+          sdists = [e for e in entries if e.endswith(".tar.gz")]
+          if len(entries) != 2 or len(wheels) != 1 or len(sdists) != 1:
+              print(
+                  "::error::expected dist/ to hold exactly one wheel and one "
+                  f"sdist, found {entries}"
+              )
+              raise SystemExit(1)
+          wheel, sdist = wheels[0], sdists[0]
+
+          wheel_names = zipfile.ZipFile(wheel).namelist()
+          with tarfile.open(sdist) as tar:
+              sdist_names = tar.getnames()
+              # The sdist unpacks into a single <name>-<version>/ directory.
+              root = os.path.commonpath(sdist_names)
+              pyproject = tomllib.loads(
+                  tar.extractfile(f"{root}/pyproject.toml").read().decode("utf-8")
+              )
+
+          print(f"wheel {os.path.basename(wheel)}")
+          print(f"sdist {os.path.basename(sdist)}")
+
+          for relative in EXPECTED_DATA_FILES:
+              in_wheel = f"{PACKAGE}/{relative}"
+              in_sdist = f"{root}/src/{PACKAGE}/{relative}"
+              for label, path, names in (
+                  ("wheel", in_wheel, wheel_names),
+                  ("sdist", in_sdist, sdist_names),
+              ):
+                  if path not in names:
+                      problems.append(f"{label} is missing data file {path}")
+                      continue
+                  # Named is not the same as present. An empty or truncated
+                  # table would satisfy a membership test and then fail at
+                  # import, so check it parses as JSON and holds something.
+                  if label == "wheel":
+                      raw = zipfile.ZipFile(wheel).read(path)
+                  else:
+                      with tarfile.open(sdist) as tar:
+                          raw = tar.extractfile(path).read()
+                  try:
+                      payload = json.loads(raw)
+                  except ValueError:
+                      problems.append(f"{label} data file {path} is not valid JSON")
+                      continue
+                  if not payload:
+                      problems.append(f"{label} data file {path} is empty")
+                      continue
+                  print(f"  found in {label}: {path} ({len(raw)} bytes)")
+
+          # The wheel is <name>-<version>-<python>-<abi>-<platform>.whl and the
+          # sdist is <name>-<version>.tar.gz.
+          wheel_version = os.path.basename(wheel).split("-")[1]
+          sdist_version = os.path.basename(sdist)[: -len(".tar.gz")].split("-")[-1]
+          pyproject_version = pyproject["project"]["version"]
+          match = re.search(
+              r'^__version__ = "([^"]+)"$',
+              zipfile.ZipFile(wheel).read(f"{PACKAGE}/__init__.py").decode("utf-8"),
+              re.MULTILINE,
+          )
+          dunder_version = match.group(1) if match else None
+
+          print(f"  pyproject.toml version {pyproject_version}")
+          print(f"  wheel version          {wheel_version}")
+          print(f"  sdist version          {sdist_version}")
+          print(f"  __version__            {dunder_version}")
+
+          def normalise(version):
+              """PEP 440 normalisation, as the artifact filenames carry it.
+
+              A legitimate version such as 0.2.0-rc1 appears in the filenames as
+              0.2.0rc1, so comparing raw strings would fail a release that is
+              perfectly correct.
+              """
+              if version is None:
+                  return None
+              text = version.strip().lower().replace("-", "").replace("_", "")
+              return text
+
+          for label, value in (
+              ("wheel filename", wheel_version),
+              ("sdist filename", sdist_version),
+              (f"__version__ in src/{PACKAGE}/__init__.py", dunder_version),
+          ):
+              if normalise(value) != normalise(pyproject_version):
+                  problems.append(
+                      f"{label} says {value}, but pyproject.toml says "
+                      f"{pyproject_version}, these have to agree"
+                  )
+
+          # On a real release the tag has to agree with pyproject.toml too. On a
+          # manual run there is no tag, so this part is skipped.
+          tag = os.environ.get("RELEASE_TAG", "")
+          if tag:
+              print(f"  release tag            {tag}")
+              if normalise(tag.lstrip("v")) != normalise(pyproject_version):
+                  problems.append(
+                      f"release tag {tag} does not match the version in "
+                      f"pyproject.toml, expected v{pyproject_version}. Either "
+                      "bump the version or retag"
+                  )
+
+          for problem in problems:
+              print(f"::error::{problem}")
+          if problems:
+              raise SystemExit(1)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"version={pyproject_version}\n")
+          PY
+
+      # PyPI refuses a filename it has already seen, permanently, even after the
+      # release is deleted. Failing here is a clear message instead of a 400 from
+      # twine after the run has already spent time building and testing.
+      - name: Check the version is not already on PyPI
+        env:
+          VERSION: ${{ steps.artifacts.outputs.version }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          name = "radiological-material-clearance-finder"
+          version = os.environ["VERSION"]
+          url = f"https://pypi.org/pypi/{name}/{version}/json"
+
+          try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                  response.read()
+          except OSError as error:
+              # A read timeout raises TimeoutError, which is an OSError but not a
+              # URLError, so catching only URLError let it abort the release.
+              # This check is a courtesy, not a gate: PyPI itself rejects a
+              # duplicate upload, so being unable to ask is not a reason to stop.
+              if isinstance(error, urllib.error.HTTPError) and error.code == 404:
+                  print(f"{name} {version} is not on PyPI, good to publish")
+                  sys.exit(0)
+              # An unexpected status means we could not tell. Do not block the
+              # release on it, PyPI itself rejects a duplicate anyway.
+              print(f"::warning::could not check PyPI, HTTP {error.code}")
+              sys.exit(0)
+          except urllib.error.URLError as error:
+              print(f"::warning::could not reach PyPI: {error.reason}")
+              sys.exit(0)
+
+          print(
+              f"::error::{name} {version} is already on PyPI. A version can "
+              "never be re-uploaded, so bump the version in pyproject.toml and "
+              "in src/radiological_material_clearance_finder/__init__.py, then "
+              "make a new release"
+          )
+          sys.exit(1)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  test:
+    # The same suite test.yml runs, on the same Python versions, but run from the
+    # sdist against the installed wheel. The src layout means the import resolves
+    # to site-packages, so this tests the artifact that would be published rather
+    # than the source tree next to it.
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.12", "3.13"]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the built wheel
+        run: python -m pip install "$(echo dist/*.whl)[test]"
+
+      - name: Unpack the sdist
+        run: |
+          mkdir sdist
+          tar -xzf dist/*.tar.gz -C sdist --strip-components=1
+
+      # The package has no runtime dependencies, so this proves it stands alone.
+      - name: Test without OpenMC
+        working-directory: sdist
+        run: pytest -q
+
+  publish:
+    # Trusted publishing, so there is no API token anywhere. PyPI checks the OIDC
+    # token against a publisher registered for this repository and this filename,
+    # which is why publish.yml must not be renamed.
+    #
+    # Only a published GitHub release gets here. A manual run stops after test.
+    if: github.event_name == 'release'
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    permissions:
+      # The one permission trusted publishing needs. It is set on this job rather
+      # than at the top of the file so that no job which runs project code can
+      # mint an OIDC token. Note this also drops contents to none, which is fine
+      # because nothing here checks the repository out.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      # Pinned to a commit SHA with the tag it belongs to in the comment. The
+      # action's own README recommends an exact tag or a full SHA over the
+      # release/v1 branch that its examples use, because a branch can move.
+      # Dependabot reads the comment when it bumps this.
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
+        with:
+          # Both of these are the action's defaults. They are spelled out because
+          # they are the two settings that matter here and they should not change
+          # by accident. skip-existing false means a repeat release fails loudly
+          # instead of turning into a silent no-op, and attestations true signs
+          # the artifacts with the same OIDC identity.
+          skip-existing: false
+          attestations: true

@@ -1,0 +1,40 @@
+[build-system]
+# Pinned so a release build is reproducible, and because the
+# license/license-files metadata form needs a recent hatchling.
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radiological-material-clearance-finder"
+version = "0.1.0"
+description = "Clearance indexes for radiological material against UK, German, US, EU and IAEA limit sets"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jonathan Shimwell" }]
+keywords = ["radiological", "clearance", "waste", "neutronics", "activation"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/fusion-energy/radiological_material_clearance_finder"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/radiological_material_clearance_finder"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/", "tests/", "tools/", "examples/", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "openmc: cross-check against an installed OpenMC (skipped when absent)",
+    "network: re-downloads official regulatory sources",
+]

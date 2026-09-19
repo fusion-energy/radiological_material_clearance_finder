@@ -1,0 +1,373 @@
+"""Limit sets: the regulatory tables a material is measured against.
+
+Every limit set is data, loaded from JSON in ``data/limits``. Adding a
+jurisdiction means adding a file and a build script, never an ``elif`` in the
+calculation. Only two things in these regulations cannot be expressed as a
+table, and both are named explicitly rather than worked around:
+
+* limits given per gram of material (the NRC's nCi/g transuranic entries), which
+  need the material's density before they can be compared against Ci/m3, and
+* limits that depend on the material's own nuclides (the NRC Class A rule that
+  anything with a half-life under five years takes a 700 Ci/m3 limit), held in
+  `DYNAMIC_RULES`.
+"""
+from __future__ import annotations
+
+import json
+import warnings
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable, Mapping
+
+from . import nuclide as _nuclide
+
+__all__ = ["LimitSet", "limit_sets", "get_limit_set", "register_limit_set", "DYNAMIC_RULES"]
+
+#: Units a limit set may be expressed in.
+ACTIVITY_UNITS = frozenset({"Bq/g", "Ci/m3", "Bq"})
+
+_LIMITS_DIR = Path(__file__).parent / "data" / "limits"
+
+#: Five years in seconds, the NRC's short-lived and long-lived boundary.
+_FIVE_YEARS = 5.0 * 365.25 * 86400.0
+
+
+@dataclass(frozen=True, eq=True)
+class LimitSet:
+    """A named table of per-nuclide activity limits.
+
+    Attributes:
+        name: Stable identifier, such as ``UK_EPR16_out_of_scope``.
+        label: Human readable description for reports.
+        jurisdiction: Issuing authority, such as ``UK`` or ``Germany``.
+        units: Activity units the limits are in: ``Bq/g``, ``Ci/m3``, or ``Bq``
+            for a total activity limit, which needs the material's mass.
+        limits: Limit per canonical nuclide name.
+        default_limit: Limit applied to a nuclide absent from ``limits``, or
+            ``None`` where the regulation has no catch-all. Three UK sets define
+            one: 0.01 Bq/g for ``UK_EPR16_out_of_scope`` and
+            ``UK_IRR17_notification``, and 0.1 Bq/g for
+            ``UK_IRR17_registration``. The other UK sets, and every German, US,
+            EU and IAEA set, have none.
+        unlimited: Nuclides the source explicitly places no limit on. They are
+            covered, and contribute nothing, which is different from being
+            absent.
+        secular_equilibrium: Parent to the daughters whose contribution the
+            parent's limit already includes, straight from the regulation's own
+            table. These are the "+" rows.
+        secular_equilibrium_sec: Parent to the daughters covered by its whole
+            chain "sec" value, which is a different and usually much longer list
+            carrying a different and much stricter limit. UK EPR 2016 gives
+            U-238 three progeny at 1 Bq/g under "U-238+" and fourteen at 0.01
+            Bq/g under "U-238sec". The stricter value is stored in ``limits``
+            under a ``_sec`` key.
+        limits_secular_equilibrium: The limit to use for a parent that the
+            source lists twice, once plain and once marked "+", when its
+            daughters are actually present. StrlSchV gives Th-232 as 10 Bq/g
+            plain and 0.01 Bq/g marked, and which one applies depends on the
+            material, not on the table.
+        metal_overrides: Limits replacing or adding to ``limits`` when the
+            material is activated metal.
+        limits_per_gram: Limits in nCi/g, converted using the material density.
+        limits_upper: Upper end of a limit given as a range in the source, kept
+            for reference. ``limits`` holds the conservative lower end.
+        dynamic_rule: Key into `DYNAMIC_RULES` for a rule that depends on
+            the material's own nuclides.
+        min_half_life_scope: Half-life in seconds below which, if *every*
+            radionuclide present falls under it, the material is outside the
+            regulation altogether. A whole-material test, not a per-nuclide
+            filter.
+        threshold: Index value at or above which the material fails, normally 1.
+        source, url, retrieved, notes: Provenance.
+    """
+
+    name: str
+    label: str
+    units: str
+    limits: dict[str, float]
+    jurisdiction: str = ""
+    default_limit: float | None = None
+    unlimited: tuple[str, ...] = ()
+    secular_equilibrium: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    secular_equilibrium_sec: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    limits_secular_equilibrium: dict[str, float] = field(default_factory=dict)
+    metal_overrides: dict[str, float] = field(default_factory=dict)
+    limits_per_gram: dict[str, float] = field(default_factory=dict)
+    limits_upper: dict[str, float] = field(default_factory=dict)
+    dynamic_rule: str | None = None
+    min_half_life_scope: float | None = None
+    threshold: float = 1.0
+    source: str = ""
+    url: str = ""
+    retrieved: str = ""
+    notes: str = ""
+
+    def __post_init__(self):
+        """Canonicalise and validate, so a hand-built set behaves like a loaded one.
+
+        A set built in Python went through none of the normalisation the JSON
+        loader applies, so ``{"Co-60": 0.1}`` silently matched nothing. Doing the
+        work here means both paths cannot diverge.
+
+        Limits are also required to be positive. A limit of zero means "no
+        activity of this is permitted", the strictest possible value, but the
+        sum of fractions cannot express that, and the evaluation used to skip it
+        as though the nuclide had no limit at all, which is the opposite.
+        Rejecting it here keeps that contradiction out of the data.
+        """
+        for field_name in (
+            "limits",
+            "metal_overrides",
+            "limits_per_gram",
+            "limits_upper",
+            "limits_secular_equilibrium",
+        ):
+            mapping = getattr(self, field_name)
+            object.__setattr__(
+                self, field_name, _canonical_limits(mapping, f"{self.name}.{field_name}")
+            )
+        # A whole chain value has to be reachable however the set was built, not
+        # only when it arrived through the JSON loader.
+        object.__setattr__(self, "limits", _promote_sec_only_limits(self.limits))
+
+        object.__setattr__(
+            self, "unlimited", tuple(_nuclide.normalise(n) for n in self.unlimited)
+        )
+        for field_name in ("secular_equilibrium", "secular_equilibrium_sec"):
+            object.__setattr__(
+                self,
+                field_name,
+                {
+                    _nuclide.normalise(parent): tuple(
+                        _nuclide.normalise(d) for d in daughters
+                    )
+                    for parent, daughters in getattr(self, field_name).items()
+                },
+            )
+
+        if self.units not in ACTIVITY_UNITS:
+            raise ValueError(
+                f"{self.name}: units {self.units!r} is not one of "
+                f"{', '.join(sorted(ACTIVITY_UNITS))}"
+            )
+        if not self.threshold > 0.0:
+            raise ValueError(f"{self.name}: threshold must be positive, got {self.threshold}")
+        if self.min_half_life_scope is not None:
+            scope = self.min_half_life_scope
+            if not scope > 0.0 or scope != scope or scope == float("inf"):
+                raise ValueError(
+                    f"{self.name}: min_half_life_scope is {scope}, but it must be "
+                    f"positive and finite. It is not a ratio, it decides whether the "
+                    f"material is in scope at all, so an infinite value would put "
+                    f"every material out of scope and report it clearable whatever "
+                    f"its index."
+                )
+        if self.default_limit is not None and not self.default_limit > 0.0:
+            raise ValueError(
+                f"{self.name}: default_limit must be positive, got {self.default_limit}"
+            )
+        for field_name in ("limits", "metal_overrides", "limits_per_gram",
+                           "limits_secular_equilibrium"):
+            for nuclide_name, value in getattr(self, field_name).items():
+                if not value > 0.0 or value != value or value == float("inf"):
+                    raise ValueError(
+                        f"{self.name}: {field_name}[{nuclide_name}] is {value}, but a "
+                        f"limit must be positive and finite. Zero cannot be expressed "
+                        f"as a ratio, and an infinite limit divides every activity to "
+                        f"nothing, so both would be read as no limit at all. A nuclide "
+                        f"the source places no limit on belongs in unlimited."
+                    )
+
+    def __hash__(self) -> int:
+        """Hash by name and units.
+
+        The generated hash would cover every field, and five of them are dicts,
+        so it raises TypeError even though the class presents as immutable. A
+        set is identified by its name, which the registry already treats as a
+        key, so that is what it hashes by. Equality still compares every field.
+        """
+        return hash((self.name, self.units))
+
+    def daughters_of(self, parent: str) -> tuple[str, ...]:
+        """Daughters whose activity this set's limit for ``parent`` already covers."""
+        return self.secular_equilibrium.get(parent, ())
+
+    @property
+    def covered_nuclides(self) -> frozenset[str]:
+        """Every nuclide this set names, whether limited or explicitly unlimited.
+
+        The ``_sec`` keys are whole chain variants of a nuclide already counted,
+        not nuclides of their own, so they are not included.
+        """
+        named = frozenset(self.limits) | frozenset(self.unlimited) | frozenset(self.limits_per_gram)
+        return frozenset(n for n in named if not n.endswith("_sec"))
+
+    def __len__(self) -> int:
+        """The number of nuclides limited, not counting whole chain variants."""
+        return sum(1 for name in self.limits if not name.endswith("_sec"))
+
+    def __repr__(self) -> str:
+        return f"LimitSet({self.name!r}, {len(self)} nuclides, {self.units})"
+
+
+# ----------------------------------------------------------------------
+# rules that depend on the material rather than only on the table
+# ----------------------------------------------------------------------
+def _nrc_short_lived_class_a(material, limit_set) -> dict[str, float]:
+    """10 CFR 61.55 Table 2 row 1: all nuclides with a half-life under 5 years.
+
+    The Class A column limits their total to 700 Ci/m3, so every such nuclide
+    that does not have its own row takes that limit.
+    """
+    extra: dict[str, float] = {}
+    for name in material.nuclides:
+        half_life = material.decay_data.half_life(name)
+        if half_life is not None and half_life < _FIVE_YEARS:
+            extra[name] = 700.0
+    return extra
+
+
+#: Rules keyed by the name a limit set's ``dynamic_rule`` field refers to.
+DYNAMIC_RULES: dict[str, Callable] = {
+    "nrc_short_lived_class_a": _nrc_short_lived_class_a,
+}
+
+
+# ----------------------------------------------------------------------
+# registry
+# ----------------------------------------------------------------------
+_REGISTRY: dict[str, LimitSet] = {}
+#: Names that came from the shipped data, so replacing one can be distinguished
+#: from a caller re-registering their own set.
+_SHIPPED: set = set()
+_LOADED = False
+
+
+def _canonical_limits(raw: Mapping[str, float], label: str = "limits") -> dict[str, float]:
+    """Normalise nuclide keys, refusing to let two of them collapse silently.
+
+    ``U240`` and ``U-240+`` both normalise to ``U240``, and Schedule 7 really does
+    publish both, ten thousand apart. Taking whichever happened to be last in the
+    mapping would make the set that lenient depending on nothing but dict order,
+    so a collision on different values is an error. The "+" and "sec" variants
+    belong in ``limits_secular_equilibrium`` and under a ``_sec`` key.
+    """
+    out: dict[str, float] = {}
+    for name, value in raw.items():
+        # "sec" entries are stored under an explicit key so that the whole-chain
+        # value and the tabulated-daughters value stay distinguishable.
+        key = name if name.endswith("_sec") else _nuclide.normalise(name)
+        value = float(value)
+        if key in out and out[key] != value:
+            raise ValueError(
+                f"{label}: {name!r} and an earlier key both normalise to {key!r} "
+                f"but give different values, {out[key]} and {value}. Whichever "
+                f"came last would silently win. Put the secular equilibrium "
+                f"variant in limits_secular_equilibrium, or under a _sec key."
+            )
+        out[key] = value
+    return out
+
+
+def _promote_sec_only_limits(limits: dict[str, float]) -> dict[str, float]:
+    """Make a whole-chain value reachable when it is the only one published.
+
+    A "sec" row is the value for a parent taken with its whole decay chain in
+    secular equilibrium. It is stored under a "_sec" key so it stays distinct
+    from a plain row, but that key can never match a nuclide in a material. For
+    a nuclide whose only row is the "sec" one, keeping it there means the set
+    applies no limit at all: UK_IRR17_natural would give unprocessed natural
+    uranium a limit of nothing rather than the published 1 Bq/g. Where a plain
+    row exists as well, it stays the limit and the "sec" value remains the
+    variant selected when the chain is actually present.
+    """
+    promoted = dict(limits)
+    for key, value in limits.items():
+        if not key.endswith("_sec"):
+            continue
+        nuclide_name = key[: -len("_sec")]
+        if nuclide_name not in promoted:
+            promoted[nuclide_name] = value
+    return promoted
+
+
+def _from_dict(payload: Mapping) -> LimitSet:
+    """Build a limit set from its JSON form. LimitSet.__post_init__ does the rest."""
+    data = dict(payload)
+    known = set(LimitSet.__dataclass_fields__)
+    # Keys beginning with an underscore are provenance for the file itself.
+    unknown = {k for k in data if k not in known and not k.startswith("_")}
+    if unknown:
+        raise ValueError(
+            f"{data.get('name', '?')}: unrecognised field(s) {sorted(unknown)} in the "
+            f"limit set data. Dropping them silently would hide a build script typo "
+            f"or a field renamed on one side only, and the set would load looking "
+            f"complete while missing whatever the field carried."
+        )
+    return LimitSet(**{k: v for k, v in data.items() if k in known})
+
+
+def _load_all() -> None:
+    global _LOADED
+    if _LOADED:
+        return
+    for path in sorted(_LIMITS_DIR.glob("*.json")):
+        payload = json.loads(path.read_text())
+        for entry in payload.get("sets", []):
+            limit_set = _from_dict(entry)
+            _REGISTRY[limit_set.name] = limit_set
+            _SHIPPED.add(limit_set.name)
+    _LOADED = True
+
+
+def limit_sets(jurisdiction: str | None = None) -> tuple[str, ...]:
+    """Names of the available limit sets, sorted.
+
+    Args:
+        jurisdiction: Restrict to one issuing authority, such as ``UK``.
+    """
+    _load_all()
+    names = sorted(_REGISTRY)
+    if jurisdiction is not None:
+        names = [n for n in names if _REGISTRY[n].jurisdiction.lower() == jurisdiction.lower()]
+    return tuple(names)
+
+
+def get_limit_set(name: str | LimitSet) -> LimitSet:
+    """Look up a limit set by name.
+
+    Args:
+        name: A registered name, or an already built `LimitSet`.
+
+    Raises:
+        KeyError: If no such set is registered, listing the ones that are.
+    """
+    if isinstance(name, LimitSet):
+        return name
+    _load_all()
+    try:
+        return _REGISTRY[name]
+    except KeyError:
+        raise KeyError(
+            f"unknown limit set {name!r}. Available: {', '.join(sorted(_REGISTRY))}"
+        ) from None
+
+
+def register_limit_set(limit_set: LimitSet) -> None:
+    """Add a limit set at runtime, for a site-specific or draft table.
+
+    Args:
+        limit_set: The set to register. Replaces any set of the same name,
+            warning first if that name came from the shipped regulatory data,
+            since shadowing a published table by accident would be hard to spot
+            in a result that only records the name.
+    """
+    _load_all()
+    if limit_set.name in _SHIPPED:
+        warnings.warn(
+            f"replacing the limit set {limit_set.name!r}, which came from the "
+            f"shipped regulatory data. Results will report that name while using "
+            f"the new table.",
+            stacklevel=2,
+        )
+    _REGISTRY[limit_set.name] = limit_set

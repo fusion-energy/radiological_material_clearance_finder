@@ -58,6 +58,11 @@ pytest
 cargo test
 ```
 
+To release, publish a GitHub release tagged with the version, such as `v0.2.0`
+(or `v0.2.0-rc.1` for a pre-release). The publish workflow takes the version from
+the tag, so there is nothing to bump, and uploads the wheels to PyPI and the
+crate to crates.io.
+
 The regulatory tables are generated, not hand written. See
 [where the data comes from](https://fusion-energy.github.io/radiological_material_clearance_finder/data-provenance/)
 before editing anything under `crates/radiological-material-clearance-finder/data/`.

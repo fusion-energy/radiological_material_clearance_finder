@@ -5,11 +5,12 @@ members = ["crates/*"]
 default-members = ["crates/radiological-material-clearance-finder"]
 resolver = "2"
 
-# One version for the crate and the wheel. maturin reads the wheel's version
-# from the binding crate, which inherits it from here, so this is the only place
-# a release bumps it.
+# One version for the crate and the wheel, which maturin reads from the binding
+# crate, which inherits it from here. 0.0.0 is a placeholder: publish.yml runs
+# tools/set_version.py to stamp the GitHub release tag's version in before it
+# builds, so releasing v0.2.0 publishes 0.2.0 with nothing to bump by hand.
 [workspace.package]
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 license = "MIT"
 authors = ["Jonathan Shimwell"]

@@ -115,7 +115,7 @@ dependencies = [
 
 [[package]]
 name = "radiological-material-clearance-finder"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "roxmltree",
  "serde",
@@ -124,7 +124,7 @@ dependencies = [
 
 [[package]]
 name = "radiological-material-clearance-finder-python"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "pyo3",
  "radiological-material-clearance-finder",

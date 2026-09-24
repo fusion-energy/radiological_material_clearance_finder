@@ -5,7 +5,8 @@ build-backend = "maturin"
 [project]
 name = "radiological-material-clearance-finder"
 # The version lives in the workspace Cargo.toml, shared by the Rust crate and
-# this wheel, and maturin reads it from there.
+# this wheel, and maturin reads it from there. Releases take it from the GitHub
+# release tag, see tools/set_version.py.
 dynamic = ["version"]
 description = "Clearance indexes for radiological material against UK, German, US, EU and IAEA limit sets"
 readme = "README.md"

@@ -47,7 +47,7 @@ plugins:
       default_handler: python
       handlers:
         python:
-          paths: [src]
+          paths: [python]
           inventories:
             - https://docs.python.org/3/objects.inv
           options:
@@ -103,7 +103,8 @@ validation:
   anchors: warn
 
 watch:
-  - src
+  - python
+  - crates/radiological-material-clearance-finder/src
   - README.md
 
 nav:
@@ -112,6 +113,7 @@ nav:
   - Limit sets: limit-sets.md
   - Regulatory notes: regulatory-notes.md
   - Using OpenMC: openmc.md
+  - Using it from Rust: rust.md
   - Where the data comes from: data-provenance.md
   - API reference:
       - api/index.md

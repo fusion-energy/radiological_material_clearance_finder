@@ -3,7 +3,7 @@
 [![test](https://github.com/fusion-energy/radiological_material_clearance_finder/actions/workflows/test.yml/badge.svg)](https://github.com/fusion-energy/radiological_material_clearance_finder/actions/workflows/test.yml)
 [![docs](https://github.com/fusion-energy/radiological_material_clearance_finder/actions/workflows/docs.yml/badge.svg)](https://github.com/fusion-energy/radiological_material_clearance_finder/actions/workflows/docs.yml)
 [![PyPI](https://img.shields.io/pypi/v/radiological-material-clearance-finder.svg)](https://pypi.org/project/radiological-material-clearance-finder/)
-[![python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://pypi.org/project/radiological-material-clearance-finder/)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://pypi.org/project/radiological-material-clearance-finder/)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Clearance indexes for a nuclide inventory, against the UK, German, US, EU and
@@ -11,7 +11,9 @@ IAEA limit sets. Give it a dictionary of isotopes and atom numbers and it tells
 you whether the material can be cleared, by which route, and what is driving the
 answer.
 
-No runtime dependencies. OpenMC is not required.
+No runtime dependencies. OpenMC is not required. The calculation is a Rust
+crate, [also usable directly](crates/radiological-material-clearance-finder/README.md)
+from Rust codes such as yamc and yani.
 
 ### 📖 [Read the documentation](https://fusion-energy.github.io/radiological_material_clearance_finder/)
 
@@ -41,6 +43,7 @@ generated from the official regulatory sources and carrying their provenance.
 | [Limit sets](https://fusion-energy.github.io/radiological_material_clearance_finder/limit-sets/) | All 22 sets, what each one means, and how to inspect its source |
 | [Regulatory notes](https://fusion-energy.github.io/radiological_material_clearance_finder/regulatory-notes/) | Secular equilibrium, catch-all limits, scope rules |
 | [Using OpenMC](https://fusion-energy.github.io/radiological_material_clearance_finder/openmc/) | Materials and depletions, and cooling time to clearance |
+| [Using it from Rust](https://fusion-energy.github.io/radiological_material_clearance_finder/rust/) | The crate yamc and yani link, and the Python to Rust mapping |
 | [Where the data comes from](https://fusion-energy.github.io/radiological_material_clearance_finder/data-provenance/) | Every source, and what has and has not been verified |
 | [API reference](https://fusion-energy.github.io/radiological_material_clearance_finder/api/) | Rendered from the docstrings |
 
@@ -49,13 +52,15 @@ generated from the official regulatory sources and carrying their provenance.
 ```bash
 git clone https://github.com/fusion-energy/radiological_material_clearance_finder.git
 cd radiological_material_clearance_finder
-pip install -e ".[test]"
+pip install maturin
+maturin develop --release --extras test
 pytest
+cargo test
 ```
 
 The regulatory tables are generated, not hand written. See
 [where the data comes from](https://fusion-energy.github.io/radiological_material_clearance_finder/data-provenance/)
-before editing anything under `src/radiological_material_clearance_finder/data/`.
+before editing anything under `crates/radiological-material-clearance-finder/data/`.
 
 ## Licence
 

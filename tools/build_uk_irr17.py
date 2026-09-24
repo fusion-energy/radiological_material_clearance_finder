@@ -30,13 +30,13 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from _tables import fetch as _fetch  # noqa: E402
 from _tables import check_regulatory, parse_value, rows, tabulars  # noqa: E402
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 URL = "https://www.legislation.gov.uk/uksi/2017/1075/schedule/7/data.xml"
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data" / "limits"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data" / "limits"
 CITATION = "Ionising Radiations Regulations 2017, Schedule 7"
 
 # A trailing superscript on a name is a footnote reference, not part of the name.

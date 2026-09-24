@@ -29,7 +29,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from _series import series_members  # noqa: E402
 from _tables import fetch as _fetch  # noqa: E402
 from _tables import check_regulatory, clean, parse_value  # noqa: E402
@@ -43,7 +43,7 @@ LIVECHART_URL = "https://nds.iaea.org/relnsd/v1/data?fields=ground_states&nuclid
 NATURAL_SERIES = {"U238": 1.0, "Th232": 1.0}
 #: Table A Part 2 also lists potassium-40 on its own rather than as a series.
 POTASSIUM_40 = 10.0
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data" / "limits"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data" / "limits"
 
 _TABLE = re.compile(r"<table[^>]*>.*?</table>", re.S)
 _ROW = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S)

@@ -65,6 +65,11 @@ python tools/build_decay_data.py     # AME2020 and ENDF/B-VIII.0
 python tools/build_decay_modes.py    # IAEA Livechart
 ```
 
+The scripts write into `crates/radiological-material-clearance-finder/data/`.
+The tables are compiled into the library, so rebuild afterwards with
+`maturin develop --release` (or `cargo build` for the crate alone) before
+checking the result.
+
 `tools/verify_tables.py` re-downloads every downloadable source and diffs it
 against the shipped tables, so an amendment to a regulation surfaces
 deliberately. It runs weekly rather than on every pull request, because it

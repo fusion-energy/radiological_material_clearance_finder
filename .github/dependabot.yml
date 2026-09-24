@@ -13,3 +13,13 @@ updates:
       actions:
         patterns:
           - "*"
+
+  # pyo3, serde and roxmltree.
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      cargo:
+        patterns:
+          - "*"

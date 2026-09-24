@@ -27,14 +27,14 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 PDF_URL = (
     "https://fetter.it-prod-webhosting.aws.umd.edu/sites/default/files/fetter/files/"
     "1990-FED-RadWaste.pdf"
 )
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data" / "limits"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data" / "limits"
 
 _NUMBER = r"\d+\.?\d*\.?E[+-]\d+"
 _ROW = re.compile(

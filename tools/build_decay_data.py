@@ -21,12 +21,12 @@ import sys
 import urllib.request
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 AME2020_URL = "https://www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt"
 AME2020_MD5 = "6d28b75833cf53c7cc230223f63da6f6"
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data"
 
 # The file documents its own Fortran format on header line 21. These are the
 # zero-based slices that format implies.

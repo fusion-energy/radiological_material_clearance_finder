@@ -1,21 +1,22 @@
 [build-system]
-# Pinned so a release build is reproducible, and because the
-# license/license-files metadata form needs a recent hatchling.
-requires = ["hatchling>=1.27,<2"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
 
 [project]
 name = "radiological-material-clearance-finder"
-version = "0.1.0"
+# The version lives in the workspace Cargo.toml, shared by the Rust crate and
+# this wheel, and maturin reads it from there.
+dynamic = ["version"]
 description = "Clearance indexes for radiological material against UK, German, US, EU and IAEA limit sets"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Jonathan Shimwell" }]
 keywords = ["radiological", "clearance", "waste", "neutronics", "activation"]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = []
@@ -26,11 +27,19 @@ test = ["pytest"]
 [project.urls]
 Homepage = "https://github.com/fusion-energy/radiological_material_clearance_finder"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/radiological_material_clearance_finder"]
-
-[tool.hatch.build.targets.sdist]
-include = ["src/", "tests/", "tools/", "examples/", "README.md", "LICENSE"]
+[tool.maturin]
+manifest-path = "crates/radiological-material-clearance-finder-python/Cargo.toml"
+python-source = "python"
+module-name = "radiological_material_clearance_finder._core"
+features = ["extension-module"]
+# The sdist carries the test suite so the published artifact can be tested on
+# its own, as publish.yml does.
+include = [
+    { path = "tests/**/*", format = "sdist" },
+    { path = "tools/**/*", format = "sdist" },
+    { path = "examples/**/*", format = "sdist" },
+]
+exclude = ["**/__pycache__/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

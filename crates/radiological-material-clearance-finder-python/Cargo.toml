@@ -1,0 +1,25 @@
+[package]
+name = "radiological-material-clearance-finder-python"
+description = "Python bindings for radiological-material-clearance-finder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+# Ships as the wheel, not as a crate. Rust users depend on the core crate.
+publish = false
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+radiological-material-clearance-finder = { path = "../radiological-material-clearance-finder" }
+# abi3-py310: one wheel per platform covers CPython 3.10 and newer.
+pyo3 = { version = "0.29", features = ["abi3-py310"] }
+
+[features]
+# Enabled by maturin through pyproject.toml. Off for plain cargo builds, which
+# would otherwise fail to link a cdylib that leaves libpython symbols undefined.
+extension-module = ["pyo3/extension-module"]

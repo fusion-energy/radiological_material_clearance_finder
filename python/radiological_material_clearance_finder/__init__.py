@@ -24,6 +24,8 @@ which imports OpenMC only when called.
 """
 from __future__ import annotations
 
+from importlib import metadata as _metadata
+
 from .classify import (
     UKWasteCategory,
     alpha_activity,
@@ -45,7 +47,10 @@ from .limits import LimitSet, get_limit_set, limit_sets, register_limit_set
 from .material import ACTIVITY_UNITS, InsufficientDataError, Material
 from .nuclide import NuclideNameError, normalise
 
-from ._core import __version__
+# The distribution's own version, in the PEP 440 spelling pip and PyPI use. The
+# extension's _core.__version__ is the crate's, which spells a pre-release
+# 0.2.0-rc.1 where the wheel says 0.2.0rc1.
+__version__ = _metadata.version("radiological-material-clearance-finder")
 
 __all__ = [
     "Material",

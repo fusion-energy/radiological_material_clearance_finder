@@ -210,7 +210,7 @@ jobs:
     # The same suite test.yml runs, from the sdist against the installed Linux
     # wheel, so this tests the artifacts that would be published rather than
     # the source tree they were built from.
-    needs: [check]
+    needs: [version, check]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -228,9 +228,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Pinned to the exact version being released. Unpinned, pip takes the
+      # highest version it can see, which can be an older release already on
+      # PyPI rather than the wheel in dist/, and the suite then tests that.
       - name: Install the built wheel
+        env:
+          VERSION: ${{ needs.version.outputs.python }}
         run: |
-          python -m pip install --only-binary :all: --find-links dist/ "radiological-material-clearance-finder[test]"
+          python -m pip install --only-binary :all: --find-links dist/ "radiological-material-clearance-finder[test]==$VERSION"
+          python -c "import radiological_material_clearance_finder as r; assert r.__version__ == '$VERSION', r.__version__"
 
       - name: Unpack the sdist
         run: |

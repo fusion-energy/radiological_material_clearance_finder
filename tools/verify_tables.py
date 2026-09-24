@@ -19,7 +19,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "src" / "radiological_material_clearance_finder" / "data"
+DATA = ROOT / "crates" / "radiological-material-clearance-finder" / "data"
 LIMITS = DATA / "limits"
 
 #: Tables regenerated from a downloadable source. us.json is not among them: it

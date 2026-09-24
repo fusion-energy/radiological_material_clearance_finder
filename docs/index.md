@@ -84,10 +84,18 @@ supply one on their own.
 ### Zero dependencies
 
 `dependencies = []`, and importing the package pulls in nothing outside the
-Python standard library. OpenMC is not required and is imported only inside the
+Python standard library and its own compiled extension. OpenMC is not required
+and is imported only inside the
 two functions of [`openmc_interop`](api/openmc_interop.md), if you call them.
 That is deliberate: a clearance check should be runnable anywhere, including
 somewhere that cannot install a neutronics stack.
+
+### A Rust core that transport codes can link
+
+The calculation is a Rust crate, and the Python package is a thin binding over
+it. A transport or transmutation code, such as yamc or yani, can depend on the
+crate and assess its own material objects without going through Python. See
+[using it from Rust](rust.md).
 
 ### The tables are data, with provenance
 

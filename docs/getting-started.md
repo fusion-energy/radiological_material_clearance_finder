@@ -14,17 +14,37 @@ none of the numbers below are illustrative.
 pip install radiological-material-clearance-finder
 ```
 
-There are no runtime dependencies, so that is the whole of it. Python 3.9 or
-newer.
+There are no runtime dependencies, so that is the whole of it. Python 3.10 or
+newer. Wheels are published for Linux, macOS and Windows; the calculation is a
+compiled Rust extension, so installing from source needs a Rust toolchain.
 
 === "For development"
 
     ```bash
     git clone https://github.com/fusion-energy/radiological_material_clearance_finder.git
     cd radiological_material_clearance_finder
-    python -m pip install -e ".[test]"
+    python -m pip install maturin
+    maturin develop --release --extras test   # builds the Rust extension
     pytest
+    cargo test                                # the Rust crate on its own
     ```
+
+    Rebuild with `maturin develop --release` after changing any Rust, and
+    after regenerating any table under
+    `crates/radiological-material-clearance-finder/data/`, since the tables are
+    compiled in.
+
+=== "From Rust"
+
+    The same library is a Rust crate, with no Python in it, for codes that want
+    to assess their own material objects directly.
+
+    ```toml
+    [dependencies]
+    radiological-material-clearance-finder = "0.1"
+    ```
+
+    See [using it from Rust](rust.md).
 
 === "With OpenMC"
 
@@ -38,8 +58,10 @@ newer.
 
     See [using it with OpenMC](openmc.md).
 
-There are **no runtime dependencies**. Python 3.9 or newer is enough, and the
-continuous integration matrix covers 3.9, 3.12 and 3.13. OpenMC is not required:
+There are **no runtime dependencies**. Python 3.10 or newer is enough: the wheel
+is built against the stable ABI, so one wheel per platform covers every CPython
+from 3.10 on, and the continuous integration matrix covers 3.10, 3.12 and 3.13.
+OpenMC is not required:
 it is imported lazily, inside the OpenMC adapter, and only if you call it.
 
 Check the install:

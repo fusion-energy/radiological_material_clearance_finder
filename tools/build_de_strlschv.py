@@ -26,13 +26,13 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from _tables import fetch as _fetch  # noqa: E402
 from _tables import check_regulatory, clean, parse_value, rows  # noqa: E402
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 URL = "https://www.gesetze-im-internet.de/strlschv_2018/anlage_4.html"
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data" / "limits"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data" / "limits"
 CITATION = "Strahlenschutzverordnung (StrlSchV) 2018, Anlage 4 Tabelle 1"
 
 #: Pathway name to (Spalte, English label, the regulation's own column heading).

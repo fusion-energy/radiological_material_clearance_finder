@@ -18,7 +18,7 @@ import io
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 #: How each decay mode changes (proton number, neutron number).

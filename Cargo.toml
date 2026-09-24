@@ -1,0 +1,24 @@
+[workspace]
+members = ["crates/*"]
+# `cargo test` from the root runs the pure Rust crate only. The Python binding
+# is a cdylib that links against libpython, and maturin is what builds it.
+default-members = ["crates/radiological-material-clearance-finder"]
+resolver = "2"
+
+# One version for the crate and the wheel. maturin reads the wheel's version
+# from the binding crate, which inherits it from here, so this is the only place
+# a release bumps it.
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Jonathan Shimwell"]
+repository = "https://github.com/fusion-energy/radiological_material_clearance_finder"
+rust-version = "1.74"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+# pyo3 turns a Rust panic into a Python exception by unwinding, so "abort" here
+# would turn a recoverable error into a killed interpreter.
+panic = "unwind"

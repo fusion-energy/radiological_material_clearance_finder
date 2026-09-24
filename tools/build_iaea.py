@@ -29,12 +29,12 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from _tables import check_regulatory  # noqa: E402
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 URL = "https://www-pub.iaea.org/MTCD/Publications/PDF/Pub1578_web-57265295.pdf"
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data" / "limits"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data" / "limits"
 
 TABLE_HEADING = "TABLE I.2. LEVELS FOR EXEMPTION OF BULK AMOUNTS OF"
 NEXT_HEADING = "TABLE I.3."

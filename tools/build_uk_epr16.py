@@ -28,13 +28,13 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from _tables import fetch as _fetch  # noqa: E402
 from _tables import check_regulatory, parse_value, rows, tabulars  # noqa: E402
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 URL = "https://www.legislation.gov.uk/ukdsi/2016/9780111150184/schedule/23/data.xml"
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data" / "limits"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data" / "limits"
 
 CITATION = "Environmental Permitting (England and Wales) Regulations 2016, Schedule 23"
 #: Part 2 paragraph 7, in seconds.

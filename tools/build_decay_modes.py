@@ -24,11 +24,11 @@ import urllib.request
 from datetime import date
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
 URL = "https://nds.iaea.org/relnsd/v1/data?fields=ground_states&nuclides=all"
-DATA = Path(__file__).resolve().parents[1] / "src" / "radiological_material_clearance_finder" / "data"
+DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data"
 
 
 def fetch(url: str) -> str:

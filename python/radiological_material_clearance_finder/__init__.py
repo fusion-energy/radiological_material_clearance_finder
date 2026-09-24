@@ -45,7 +45,7 @@ from .limits import LimitSet, get_limit_set, limit_sets, register_limit_set
 from .material import ACTIVITY_UNITS, InsufficientDataError, Material
 from .nuclide import NuclideNameError, normalise
 
-__version__ = "0.1.0"
+from ._core import __version__
 
 __all__ = [
     "Material",

@@ -1,7 +1,7 @@
 {
  "_source": "ENDF/B-VIII.0 decay sublibrary, via OpenMC openmc/data/half_life.json (MIT)",
  "_url": "https://www.nndc.bnl.gov/endf-b8.0/download.html",
- "_origin": "/home/jon/openmc/openmc/data/half_life.json",
+ "_origin": "openmc/data/half_life.json",
  "_note": "Half-lives in seconds. Nuclides absent from this table are treated as stable.",
  "values": {
   "Ac206": 0.024,

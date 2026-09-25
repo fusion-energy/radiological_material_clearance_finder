@@ -1,6 +1,6 @@
 {
  "_generated_by": "tools/build_us.py",
- "_extracted_from": "/home/jon/openmc/openmc/waste.py",
+ "_extracted_from": "openmc/waste.py",
  "sets": [
   {
    "name": "Fetter",

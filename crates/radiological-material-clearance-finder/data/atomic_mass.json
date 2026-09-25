@@ -1,7 +1,7 @@
 {
  "_source": "AME2020 atomic mass evaluation",
  "_url": "https://www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt",
- "_origin": "/home/jon/openmc/openmc/data/mass_1.mas20.txt",
+ "_origin": "openmc/data/mass_1.mas20.txt",
  "_reference": "Wang et al., Chinese Physics C 45, 030003 (2021), doi:10.1088/1674-1137/abddaf",
  "_note": "Relative atomic masses in u. Metastable states take their ground state mass, which is accurate to better than 1e-5.",
  "values": {

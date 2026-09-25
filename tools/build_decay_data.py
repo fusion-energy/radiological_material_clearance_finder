@@ -21,6 +21,8 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from _tables import portable_origin
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from radiological_material_clearance_finder import nuclide as nuc  # noqa: E402
 
@@ -107,7 +109,7 @@ def main() -> None:
 
     if args.ame is not None:
         ame_text = args.ame.read_text()
-        ame_origin = str(args.ame)
+        ame_origin = portable_origin(args.ame)
     else:
         request = urllib.request.Request(AME2020_URL, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(request, timeout=120) as handle:
@@ -141,7 +143,7 @@ def main() -> None:
         {
             "_source": "ENDF/B-VIII.0 decay sublibrary, via OpenMC openmc/data/half_life.json (MIT)",
             "_url": "https://www.nndc.bnl.gov/endf-b8.0/download.html",
-            "_origin": str(args.half_life_json),
+            "_origin": portable_origin(args.half_life_json),
             "_note": "Half-lives in seconds. Nuclides absent from this table are treated as stable.",
             "values": dict(sorted(half_lives.items())),
         },

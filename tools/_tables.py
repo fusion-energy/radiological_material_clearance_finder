@@ -11,6 +11,7 @@ import re
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 # legislation.gov.uk marks exponents with <Superior>, so 10^2 is
 # "10<Superior>2</Superior>". Flattening tags first would turn that into "102".
@@ -171,3 +172,20 @@ def fetch(url: str, *, timeout: float = 120.0, attempts: int = 4, encoding: str 
                       f"retrying in {delay}s")
                 time.sleep(delay)
     raise RuntimeError(f"could not fetch {url} after {attempts} attempts: {last}")
+
+
+def portable_origin(path: Path, package: str = "openmc") -> str:
+    """Name a local source file without the machine it was read on.
+
+    The tables are compiled into the library, so a provenance string holding an
+    absolute path puts a developer's home directory into every shipped binary,
+    which is both a leak and meaningless to anyone else. The part below the
+    package directory, such as ``openmc/data/half_life.json``, is what a reader
+    can find in their own checkout. A path outside any such package keeps only
+    its file name.
+    """
+    parts = Path(path).parts
+    if package in parts:
+        last = len(parts) - 1 - parts[::-1].index(package)
+        return "/".join(parts[last:])
+    return Path(path).name

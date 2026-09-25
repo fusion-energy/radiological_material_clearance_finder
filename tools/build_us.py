@@ -20,6 +20,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from _tables import portable_origin
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
 DATA = Path(__file__).resolve().parents[1] / "crates" / "radiological-material-clearance-finder" / "data" / "limits"
@@ -158,7 +160,7 @@ def main() -> None:
 
     payload = {
         "_generated_by": "tools/build_us.py",
-        "_extracted_from": str(args.waste_py),
+        "_extracted_from": portable_origin(args.waste_py),
         "sets": sets,
     }
     (DATA / "us.json").write_text(json.dumps(payload, indent=1) + "\n")
